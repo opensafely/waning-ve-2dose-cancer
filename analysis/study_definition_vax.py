@@ -412,4 +412,16 @@ study=StudyDefinition(
             "incidence": 0.001
         }
     ),
+
+    ###################
+    ### CANCER FLAG ###
+    ###################
+
+    cancer=patients.with_these_clinical_events( 
+        cancer_codes, 
+        on_or_after="2018-01-01",
+        find_first_match_in_period = True,
+        returning="date",
+        date_format="YYYY-MM-DD",
+    ),   
 )
