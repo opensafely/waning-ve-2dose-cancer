@@ -269,6 +269,12 @@
       "url": "https://codelists.opensafely.org/codelist/opensafely/influenza-vaccination-clinical-codes-not-given/2020-05-19/",
       "downloaded_at": "2021-11-01 14:54:29.700255Z",
       "sha": "db68fd1368358f1ecbbc006c83419b3b47bcb82c"
+    },
+    "user-elsie_horne-cancer_icd10.csv": {
+      "id": "user/elsie_horne/cancer_icd10/55460349",
+      "url": "https://codelists.opensafely.org/codelist/user/elsie_horne/cancer_icd10/55460349/",
+      "downloaded_at": "2022-06-07 13:38:57.823441Z",
+      "sha": "e7d60dcd0d942c6db6095390c5befcf623cb4b36"
     }
   }
 }
