@@ -162,6 +162,20 @@ dummy_data_covs <- dummy_data_vax %>%
                   !is.na(coviddeath_date), 
                   coviddeath_date,
                   .x))) %>%
+  # add date of cancer diagnosis for 10% of patients
+  mutate(
+    cancer = if_else(
+      # randomly sample 10% of patients
+      sample(x = c(FALSE, TRUE), size = nrow(.), replace=TRUE, prob = c(0.9,0.1)),
+      # assign cancer date
+      sample(
+        x = seq(as.Date("2018-01-01"), as.Date("2022-06-01"), by = 1),
+        size = nrow(.),
+        replace = TRUE
+      ),
+      # missing for other 90%
+      as.Date(NA_character_)
+    )) %>%
   mutate(across(contains("_date"), as.POSIXct)) %>%
   mutate(across(ends_with("date"), as.POSIXct)) %>%
   mutate(across(c(ethnicity_6, ethnicity_6_sus, jcvi_group, region, sex),
