@@ -106,7 +106,16 @@ data_all <- data_arm %>%
     arm %in% "unvax",
     covid_vax_1_date,
     covid_vax_3_date)) %>%
-  select(-covid_vax_1_date, -covid_vax_3_date, -asplenia)
+  select(-covid_vax_1_date, -covid_vax_3_date) %>%
+  mutate(
+    #TODO create flags for each subgroup analysis:
+    prior_infection = xxx,
+    cancer_subgroup = xxx,
+    age_subgroup = factor(
+      if_else(age < 70, "18-69", "70+"),
+      levels = c("18-69", "70+")
+    )
+  )
 
 readr::write_rds(
   data_all,
