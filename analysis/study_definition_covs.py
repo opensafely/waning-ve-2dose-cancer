@@ -255,7 +255,7 @@ study=StudyDefinition(
 
     # Immunosuppression
     immunosuppressed=patients.satisfying(
-    "immrx OR immdx OR asplenia",
+    "immrx OR immdx",
     # Immunosuppression diagnosis codes
     immdx=patients.with_these_clinical_events(
         immdx_primis,
@@ -269,13 +269,14 @@ study=StudyDefinition(
         returning="binary_flag",
         between=["svp_start_date - 180 days", "svp_start_date - 1 day"],
         ),
+    ),
+
     # Asplenia or Dysfunction of the Spleen codes
     asplenia=patients.with_these_clinical_events(
         spln_primis,
         returning="binary_flag",
         on_or_before="svp_start_date - 1 day",
         return_expectations={"incidence": 0.02},
-      ),
     ),
 
     # Learning Disability
@@ -336,137 +337,6 @@ study=StudyDefinition(
             between=["svp_start_date - 252 days", "svp_start_date - 1 day"],
             date_format="YYYY-MM-DD",
         ),
-    ),
-
-    ##############
-    ### EVENTS ###
-    ##############
-    ## positive covid test
-    # latest on or before before start_1_date - 90 days
-    postest_0_date=patients.with_test_result_in_sgss(
-        pathogen="SARS-CoV-2",
-        test_result="positive",
-        returning="date",
-        date_format="YYYY-MM-DD",
-        on_or_before="start_1_date - 90 days",
-        find_last_match_in_period=True,
-        restrict_to_earliest_specimen_date=False,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-    # latest between [start_1_date - 89 days, start_1_date]
-    postest_1_date=patients.with_test_result_in_sgss(
-        pathogen="SARS-CoV-2",
-        test_result="positive",
-        returning="date",
-        date_format="YYYY-MM-DD",
-        between=["start_1_date - 89 days", "start_1_date"],
-        find_last_match_in_period=True,
-        restrict_to_earliest_specimen_date=False,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-    # earliest after start_1_date
-    postest_2_date=patients.with_test_result_in_sgss(
-        pathogen="SARS-CoV-2",
-        test_result="positive",
-        returning="date",
-        date_format="YYYY-MM-DD",
-        on_or_after="start_1_date + 1 days",
-        find_first_match_in_period=True,
-        restrict_to_earliest_specimen_date=False,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-
-    ## probable covid case identified in primary care
-    # latest before start_1_date - 90 days
-    primary_care_covid_case_0_date=patients.with_these_clinical_events(
-        covid_primary_care_probable_combined,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        on_or_before="start_1_date - 90 days",
-        find_last_match_in_period=True,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-    # latest between [start_1_date - 89 days, start_1_date]
-    primary_care_covid_case_1_date=patients.with_these_clinical_events(
-        covid_primary_care_probable_combined,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        between=["start_1_date - 89 days", "start_1_date"],
-        find_last_match_in_period=True,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-    
-    # covid hospitalisation:
-    # latest before start_1_date - 90 days
-    covidadmitted_0_date=patients.admitted_to_hospital(
-        returning="date_admitted",
-        with_these_diagnoses=covid_codes,
-        on_or_before="start_1_date - 90 days",
-        find_last_match_in_period=True,
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01,
-        },
-    ),
-    # latest between [start_1_date - 89 days, start_1_date]
-    covidadmitted_1_date=patients.admitted_to_hospital(
-        returning="date_admitted",
-        with_these_diagnoses=covid_codes,
-        between=["start_1_date - 89 days", "start_1_date"],
-        find_last_match_in_period=True,
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01,
-        },
-    ),
-    # earliest after start_1_date
-    covidadmitted_2_date=patients.admitted_to_hospital(
-        returning="date_admitted",
-        with_these_diagnoses=covid_codes,
-        on_or_after="start_1_date + 1 days",
-        find_first_match_in_period=True,
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01,
-        },
-    ),
-    
-    # covid death
-    coviddeath_date=patients.with_these_codes_on_death_certificate(
-        covid_codes,
-        returning="date_of_death",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "uniform",
-            "incidence": 0.02
-        },
     ),
 
     # first occurence of any covid test in each comparison period

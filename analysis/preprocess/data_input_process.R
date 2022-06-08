@@ -183,161 +183,179 @@ readr::write_rds(
   here::here("output", "data", "data_wide_vax_dates.rds"), 
   compress="gz")
 
-# ###############################################################################
-# # probable covid
-# data_pr_probable_covid <- data_processed_0 %>%
-#   select(patient_id,
-#          matches("^primary\\_care\\_covid\\_case\\_\\d+\\_date")) %>%
-#   pivot_longer(
-#     cols = -patient_id,
-#     names_to = c(NA, "probable_index"),
-#     names_pattern = "^(.*)_(\\d+)_date",
-#     values_to = "date",
-#     values_drop_na = TRUE
-#   ) %>%
-#   arrange(patient_id, date)
-# 
-# ###############################################################################
-# # covid admission from APCS
-# data_covidadmitted <- data_processed_0 %>%
-#   select(patient_id, 
-#          matches("^covidadmitted\\_\\d+\\_date")) %>%
-#   pivot_longer(
-#     cols = -patient_id,
-#     names_to = c(NA, "covidadmitted_index"),
-#     names_pattern = "^(.*)_(\\d+)_date",
-#     values_to = "date",
-#     values_drop_na = TRUE
-#   ) %>%
-#   arrange(patient_id, date)
-# 
-# ###############################################################################
-# # covid admission from ECDS
-# data_covidemergency <- data_processed_0 %>%
-#   select(patient_id, 
-#          matches("^covidemergency\\_\\d+\\_date")) %>%
-#   pivot_longer(
-#     cols = -patient_id,
-#     names_to = c(NA, "covidemergency_index"),
-#     names_pattern = "^(.*)_(\\d+)_date",
-#     values_to = "date",
-#     values_drop_na = TRUE
-#   ) %>%
-#   arrange(patient_id, date)
-# 
-# ###############################################################################
-# # positive test
-# data_postest <- data_processed_0 %>%
-#   select(patient_id, 
-#          matches("^positive\\_test\\_\\d+\\_date")) %>%
-#   pivot_longer(
-#     cols = -patient_id,
-#     names_to = c(NA, "postest_index"),
-#     names_pattern = "^(.*)_(\\d+)_date",
-#     values_to = "date",
-#     values_drop_na = TRUE
-#   ) %>%
-#   arrange(patient_id, date)
-# 
-# # combine outcomes where postest missing
-# # individuals with covidadmitted but not postest
-# data_covidadmitted_impute <- data_covidadmitted %>% 
-#   anti_join(data_postest, by = "patient_id") %>%
-#   rename(postest_index = covidadmitted_index)
-# 
-# # individuals with coviddeath but not postest
-# data_coviddeath_impute <- data_processed_0 %>%
-#   select(patient_id, coviddeath_date) %>%
-#   filter(!is.na(coviddeath_date)) %>%
-#   anti_join(data_postest,
-#             by = "patient_id") %>%
-#   anti_join(data_covidadmitted_impute,
-#             by = "patient_id") %>%
-#   mutate(postest_index = "0") %>%
-#   rename(date = coviddeath_date)
-# 
-# #### may have to re-think this approach to combining outcomes if outcomes do 
-# #### become recurring rather than "ever"
-# data_postest <- bind_rows(
-#   data_postest,
-#   data_covidadmitted_impute,
-#   data_coviddeath_impute
-# )
-# 
-# ################################################################################
-# # create dataset which contains the earliest date of any evidence of covid
-# # (not including covid death, as only applied to alive individuals)
-# data_covid_any <- list(
-#   # data_pr_suspected_covid,
-#   data_pr_probable_covid,
-#   data_covidadmitted,
-#   data_postest
-# )
-# 
-# data_covid_any <- bind_rows(
-#   lapply(
-#     data_covid_any, 
-#     function(x) {
-#       name <- str_remove(names(x %>% select(ends_with("index"))), "_index")
-#       x %>% select(patient_id, date) %>% mutate(covid_event = name)
-#     }
-#     )
-#   ) %>%
-#   mutate(across(covid_event,
-#                 factor,
-#                 # if multiple recorded on the same date, this is the order of preference
-#                 levels = c(
-#                   "covidadmitted",
-#                   "postest",
-#                   "probable"
-#                 ))) %>%
-#   arrange(patient_id, date, covid_event) %>%
-#   # keep the first event to occur
-#   distinct(patient_id, .keep_all = TRUE) %>%
-#   rename(covid_any_date = date)
+###############################################################################
+# probable covid
+data_pr_probable_covid <- data_processed_0 %>%
+  select(patient_id,
+         matches("^primary\\_care\\_covid\\_case\\_\\d+\\_date")) %>%
+  pivot_longer(
+    cols = -patient_id,
+    names_to = c(NA, "probable_index"),
+    names_pattern = "^(.*)_(\\d+)_date",
+    values_to = "date",
+    values_drop_na = TRUE
+  ) %>%
+  arrange(patient_id, date)
+
+###############################################################################
+# covid admission from APCS
+data_covidadmitted <- data_processed_0 %>%
+  select(patient_id, 
+         matches("^covidadmitted\\_\\d+\\_date")) %>%
+  pivot_longer(
+    cols = -patient_id,
+    names_to = c(NA, "covidadmitted_index"),
+    names_pattern = "^(.*)_(\\d+)_date",
+    values_to = "date",
+    values_drop_na = TRUE
+  ) %>%
+  arrange(patient_id, date)
+
+###############################################################################
+# covid admission from ECDS
+data_covidemergency <- data_processed_0 %>%
+  select(patient_id, 
+         matches("^covidemergency\\_\\d+\\_date")) %>%
+  pivot_longer(
+    cols = -patient_id,
+    names_to = c(NA, "covidemergency_index"),
+    names_pattern = "^(.*)_(\\d+)_date",
+    values_to = "date",
+    values_drop_na = TRUE
+  ) %>%
+  arrange(patient_id, date)
+
+###############################################################################
+# positive test
+data_postest <- data_processed_0 %>%
+  select(patient_id, 
+         matches("^positive\\_test\\_\\d+\\_date")) %>%
+  pivot_longer(
+    cols = -patient_id,
+    names_to = c(NA, "postest_index"),
+    names_pattern = "^(.*)_(\\d+)_date",
+    values_to = "date",
+    values_drop_na = TRUE
+  ) %>%
+  arrange(patient_id, date)
+
+# combine outcomes where postest missing
+# individuals with covidadmitted but not postest
+data_covidadmitted_impute <- data_covidadmitted %>% 
+  anti_join(data_postest, by = "patient_id") %>%
+  rename(postest_index = covidadmitted_index)
+
+# individuals with coviddeath but not postest
+data_coviddeath_impute <- data_processed_0 %>%
+  select(patient_id, coviddeath_date) %>%
+  filter(!is.na(coviddeath_date)) %>%
+  anti_join(data_postest,
+            by = "patient_id") %>%
+  anti_join(data_covidadmitted_impute,
+            by = "patient_id") %>%
+  mutate(postest_index = "0") %>%
+  rename(date = coviddeath_date)
+
+#### may have to re-think this approach to combining outcomes if outcomes do 
+#### become recurring rather than "ever"
+data_postest <- bind_rows(
+  data_postest,
+  data_covidadmitted_impute,
+  data_coviddeath_impute
+)
 
 ################################################################################
-# # create dataset of outcomes data
-# 
-# ## join outcomes data
-# data_outcomes <- data_processed_0 %>%
-#   select(patient_id, contains("death")) %>%
-#   left_join(
-#     data_postest %>% select(patient_id, postest_date = date),
-#     by = "patient_id"
-#   ) %>%
-#   left_join(
-#     data_covidadmitted %>% select(patient_id, covidadmitted_date = date),
-#     by = "patient_id"
-#   ) %>%
-#   left_join(
-#     data_covidemergency %>% select(patient_id, covidemergency_date = date),
-#     by = "patient_id"
-#   ) %>%
-#   # in case coviddeath_date and death_date different dates
-#   mutate(across(c(coviddeath_date, death_date),
-#                 ~ if_else(
-#                   !is.na(coviddeath_date) & !is.na(death_date),
-#                   pmin(coviddeath_date, death_date, na.rm = TRUE),
-#                   .x
-#                 ))) %>%
-#   # add outcome for noncoviddeath
-#   mutate(
-#     noncoviddeath_date = if_else(
-#       !is.na(death_date) & is.na(coviddeath_date),
-#       death_date, 
-#       as.Date(NA_character_))
-#   )
+# create dataset which contains the earliest date of any evidence of covid
+# (not including covid death, as only applied to alive individuals)
+data_covid_any <- list(
+  # data_pr_suspected_covid,
+  data_pr_probable_covid,
+  data_covidadmitted,
+  data_postest
+)
+
+data_covid_any <- bind_rows(
+  lapply(
+    data_covid_any, 
+    function(x) {
+      name <- str_remove(names(x %>% select(ends_with("index"))), "_index")
+      x %>% select(patient_id, date) %>% mutate(covid_event = name)
+    }
+    )
+  ) %>%
+  mutate(across(covid_event,
+                factor,
+                # if multiple recorded on the same date, this is the order of preference
+                levels = c(
+                  "covidadmitted",
+                  "postest",
+                  "probable"
+                ))) %>%
+  arrange(patient_id, date, covid_event) %>%
+  # keep the first event to occur
+  distinct(patient_id, .keep_all = TRUE) %>%
+  rename(covid_any_date = date)
+
+################################################################################
+# create dataset of outcomes data
+
+## join outcomes data
+data_outcomes <- data_processed_0 %>%
+  select(patient_id, contains("death")) %>%
+  left_join(
+    data_postest %>% select(patient_id, postest_date = date),
+    by = "patient_id"
+  ) %>%
+  left_join(
+    data_covidadmitted %>% select(patient_id, covidadmitted_date = date),
+    by = "patient_id"
+  ) %>%
+  left_join(
+    data_covidemergency %>% select(patient_id, covidemergency_date = date),
+    by = "patient_id"
+  ) %>%
+  # in case coviddeath_date and death_date different dates
+  mutate(across(c(coviddeath_date, death_date),
+                ~ if_else(
+                  !is.na(coviddeath_date) & !is.na(death_date),
+                  pmin(coviddeath_date, death_date, na.rm = TRUE),
+                  .x
+                ))) %>%
+  # add outcome for noncoviddeath
+  mutate(
+    noncoviddeath_date = if_else(
+      !is.na(death_date) & is.na(coviddeath_date),
+      death_date, 
+      as.Date(NA_character_))
+  )
 
 ################################################################################
 # save dataset of covariates 
 # (remove variables that are saved elsewhere)
 
 data_processed <- data_processed_0 %>%
+  # join covid_any
+  left_join(
+    data_covid_any,
+    by = "patient_id") %>%
   select(
     # remove vaccine variables
     -contains("_vax_"),
-  ) 
+    # remove death variables
+    -contains("death"),
+    # remove recurring variables
+    -starts_with(c(
+      "primary_care_suspected_covid", 
+      "primary_care_covid_case",
+      "positive_test",
+      "covidadmitted",
+      "covidemergency"))
+  ) %>%
+  # join processed outcomes data
+  left_join(
+    data_outcomes,
+    by = "patient_id"
+  )
 
 readr::write_rds(
   data_processed,
