@@ -259,9 +259,9 @@ eth2001_primis = codelist_from_csv(
 
 ## History of covid
 covid_codes = codelist_from_csv(
-  "codelists/opensafely-covid-identification.csv",
-  system = "icd10",
-  column = "icd10_code",
+    "codelists/opensafely-covid-identification.csv",
+    system = "icd10",
+    column = "icd10_code",
 )
 
 # probable COVID in primary care
@@ -284,13 +284,6 @@ covid_primary_care_probable_combined=combine_codelists(
     covid_primary_care_positive_test,
     covid_primary_care_code,
     covid_primary_care_sequalae,
-)
-
-# COVID ICD10
-ICD10_I_codes = codelist_from_csv(
-    "codelists/opensafely-icd-10-chapter-i.csv",
-    system="icd10",
-    column="code",
 )
 
 # for identifying hospitalisations from emergency data
@@ -334,8 +327,37 @@ midazolam_codes = codelist_from_csv(
 ### cancer cohort codes ###
 ###########################
 
-cancer_codes = codelist_from_csv(
+cancer_nonhaem_icd10=codelist_from_csv(
     "codelists/user-elsie_horne-cancer_icd10.csv",
     system="icd10",
     column="code",
+)
+
+cancer_haem_icd10=codelist_from_csv(
+    "codelists/user-elsie_horne-cancer_haem_icd10.csv",
+    system="icd10",
+    column="code",
+)
+
+cancer_haem_snomed=codelist_from_csv(
+    "codelists/opensafely-haematological-cancer-snomed.csv",
+    system="snomed",
+    column="id",
+)
+
+cancer_nonhaem_nonlung_snomed=codelist_from_csv(
+    "codelists/opensafely-cancer-excluding-lung-and-haematological-snomed.csv",
+    system="snomed",
+    column="id",
+)
+
+cancer_lung_snomed=codelist_from_csv(
+    "codelists/opensafely-lung-cancer-snomed.csv",
+    system="snomed",
+    column="id",
+)
+
+cancer_nonhaem_snomed=combine_codelists(
+    cancer_nonhaem_nonlung_snomed,
+    cancer_lung_snomed,
 )
