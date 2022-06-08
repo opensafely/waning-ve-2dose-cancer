@@ -15,16 +15,17 @@ set.seed(5476)
 
 # date vars 
 # set these to have occured since start of pandemic
-date_vars_recent <- c("positive_test_0_date", 
-                      "primary_care_covid_case_0_date", 
-                      "covidadmitted_0_date",
-                      "covidemergency_0_date",
-                      "death_date",
-                      "longres_date",
-                      "endoflife_date", 
-                      "midazolam_date",
-                      "coviddeath_date", 
-                      "dereg_date")
+date_vars_recent <- c(
+  # "positive_test_0_date", 
+  # "primary_care_covid_case_0_date", 
+  # "covidadmitted_0_date",
+  # "covidemergency_0_date",
+  "death_date",
+  "longres_date",
+  "endoflife_date", 
+  "midazolam_date",
+  # "coviddeath_date", 
+  "dereg_date")
 
 jcvi_group_patterns <- readr::read_csv(here::here("analysis", "lib", "jcvi_groups.csv")) %>%
   mutate(across(definition, ~str_extract(.x, "age_. >=\\d{2}"))) %>%
@@ -157,25 +158,15 @@ dummy_data_covs <- dummy_data_vax %>%
           keep_vars = FALSE
         ))) %>%
   # add death_date if coviddeath_date
-  mutate(across(death_date, 
-                ~if_else(
-                  !is.na(coviddeath_date), 
-                  coviddeath_date,
-                  .x))) %>%
-  # add date of cancer diagnosis for 10% of patients
-  mutate(
-    cancer = if_else(
-      # randomly sample 10% of patients
-      sample(x = c(FALSE, TRUE), size = nrow(.), replace=TRUE, prob = c(0.9,0.1)),
-      # assign cancer date
-      sample(
-        x = seq(as.Date("2018-01-01"), as.Date("2022-06-01"), by = 1),
-        size = nrow(.),
-        replace = TRUE
-      ),
-      # missing for other 90%
-      as.Date(NA_character_)
-    )) %>%
+  # mutate(across(death_date, 
+  #               ~if_else(
+  #                 !is.na(coviddeath_date), 
+  #                 coviddeath_date,
+  #                 .x))) %>%
+  cancer_dates(name = "cancer_nonhaem_icd10_date") %>%
+  cancer_dates(name = "cancer_nonhaem_snomed_date") %>%
+  cancer_dates(name = "cancer_haem_icd10_date") %>%
+  cancer_dates(name = "cancer_haem_snomed_date") %>%
   mutate(across(contains("_date"), as.POSIXct)) %>%
   mutate(across(ends_with("date"), as.POSIXct)) %>%
   mutate(across(c(ethnicity_6, ethnicity_6_sus, jcvi_group, region, sex),
