@@ -38,7 +38,6 @@ data_processed <- readr::read_rds(
   select(patient_id, subgroup,
          jcvi_group, elig_date, region, 
          dereg_date, death_date,
-         starts_with(unname(outcomes)),
          any_of(unname(model_varlist$demographic)))
 
 # vax data
@@ -57,7 +56,7 @@ data_all <- data_arm %>%
     data_covariates %>%
       select(patient_id, 
              matches(c("start_\\d_date", "end_\\d_date")),
-             starts_with("anytest"), asplenia,
+             starts_with(c(unname(outcomes), "primary_care_covid")),
              any_of(unname(unlist(model_varlist)))) %>%
       mutate(across(contains("_date"), 
                     ~ floor_date(
@@ -77,8 +76,6 @@ data_all <- data_arm %>%
   mutate(
     
     pregnancy = pregnancy & (sex == "Female") & (age < 50),
-    
-    immunosuppressed = immunosuppressed | asplenia,
     
     multimorb =
       # as.integer(bmi %in% "Obese III (40+)") +
