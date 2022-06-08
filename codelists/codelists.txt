@@ -36,7 +36,6 @@ opensafely/covid-identification/2020-06-03
 opensafely/covid-identification-in-primary-care-probable-covid-positive-test/2020-07-16
 opensafely/covid-identification-in-primary-care-probable-covid-clinical-code/2020-07-16
 opensafely/covid-identification-in-primary-care-probable-covid-sequelae/2020-07-16
-opensafely/icd-10-chapter-i/10e46159
 
 opensafely/midazolam-end-of-life/4c1b3c89
 nhsd-primary-care-domain-refsets/palcare_cod/5fce98cf
@@ -46,3 +45,9 @@ opensafely/no-longer-housebound/29a88ca6
 opensafely/influenza-vaccination/2020-05-12
 opensafely/influenza-vaccination-clinical-codes-given/2020-05-21
 opensafely/influenza-vaccination-clinical-codes-not-given/2020-05-19
+
+user/elsie_horne/cancer_icd10/55460349
+user/elsie_horne/cancer_haem_icd10/6ce4d5be
+opensafely/cancer-excluding-lung-and-haematological-snomed/2020-04-15
+opensafely/haematological-cancer-snomed/2020-04-15
+opensafely/lung-cancer-snomed/2020-04-15
