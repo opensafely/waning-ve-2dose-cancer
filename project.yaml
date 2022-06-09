@@ -138,8 +138,8 @@ actions:
     outputs:
       highly_sensitive:
         data_covariates: output/data/data_all.rds
-      moderately_sensitive:
-        data_min_max_fu_csv: output/lib/data_min_max_fu.csv
+      # moderately_sensitive:
+      #   data_min_max_fu_csv: output/lib/data_min_max_fu.csv
 
   ## #################################### 
   ## subsequent vaccination 
