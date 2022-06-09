@@ -361,3 +361,8 @@ cancer_nonhaem_snomed=combine_codelists(
     cancer_nonhaem_nonlung_snomed,
     cancer_lung_snomed,
 )
+
+cancer_unspec_icd10=codelist(
+    ["C76", "C77", "C78", "C79", "C80", "C97"],
+    system="icd10",
+)
