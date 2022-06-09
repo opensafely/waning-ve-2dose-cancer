@@ -42,7 +42,8 @@ second_vax_period_dates <- readr::read_rds(
 # covariate data
 data_processed <- readr::read_rds(
   here::here("output", "data", "data_processed.rds")) %>%
-  select(patient_id, subgroup, endoflife_date, midazolam_date, longres_date)
+  select(patient_id, subgroup, endoflife_date, midazolam_date, 
+         longres_date, death_date, dereg_date)
 
 ################################################################################
 # apply eligibility criteria in box c ----
@@ -119,13 +120,21 @@ exclusion_e <- function(group) {
   
   # define data based on group
   if (group == "vax") {
-    data <- data_eligible_c
+    data <- data_eligible_c %>%
+      mutate(
+        start_1_date = covid_vax_2_date + days(14),
+        end_1_date = start_1_date + days(28)
+        )
   } else {
-    data <- data_eligible_d
+    data <- data_eligible_d %>%
+      mutate(
+        start_1_date = svp_start_date + days(14),
+        end_1_date = start_1_date + days(56)
+      )
   }
   
   data <- data %>%
-    left_join(data_processed, by = "patient_id") #%>%
+    left_join(data_processed, by = "patient_id") 
   
   eligibility_count_e <- tribble(
     ~description, ~n, 
@@ -133,10 +142,11 @@ exclusion_e <- function(group) {
   ) %>%
     filter(!is.na(description))
   
-  # remove if in long-term residential home before start date
+  # remove if in long-term residential home before SVP
   data <- data %>%
     filter(
-      no_evidence_of(longres_date, svp_start_date))
+      no_evidence_of(longres_date, svp_start_date)
+      )
   
   eligibility_count_e <- eligibility_count_e %>%
     add_row(
@@ -144,19 +154,45 @@ exclusion_e <- function(group) {
       n =  n_distinct(data$patient_id)
     )
   
-  # remove if end of life care before start date
+  # remove if end of life care before SVP
   data <- data %>%
     filter(
       no_evidence_of(endoflife_date, svp_start_date),
       no_evidence_of(midazolam_date, svp_start_date)
-    ) %>%
-    select(-all_of(names(data_processed)[!names(data_processed) %in% "patient_id"]))
+    ) 
   
   eligibility_count_e <- eligibility_count_e %>%
     add_row(
       description = as.character(glue("{group}: Evidence of end of life care before SVP.")),
       n =  n_distinct(data$patient_id)
     )
+  
+  # remove if died before start_1_date
+  data <- data %>%
+    filter(
+      no_evidence_of(death_date, start_1_date)
+    ) 
+  
+  eligibility_count_e <- eligibility_count_e %>%
+    add_row(
+      description = as.character(glue("{group}: Died before start_1_date.")),
+      n =  n_distinct(data$patient_id)
+    )
+  
+  # remove id deregistered before start_1_date
+  data <- data %>%
+    filter(
+      no_evidence_of(dereg_date, start_1_date)
+    ) 
+  
+  eligibility_count_e <- eligibility_count_e %>%
+    add_row(
+      description = as.character(glue("{group}: Deregistrered before start_1_date.")),
+      n =  n_distinct(data$patient_id)
+    )
+  
+  data <- data %>%
+    select(-all_of(names(data_processed)[!names(data_processed) %in% "patient_id"]))
   
   list(data = data, eligibility_count = eligibility_count_e)
     
@@ -204,27 +240,11 @@ readr::write_csv(
 # for reading into study_definition_tests
 data_eligible_e <- bind_rows(
   data_eligible_e_vax[[1]] %>% 
-    transmute(patient_id, 
-              elig_date, 
-              svp_start_date,
-              start_1_date = covid_vax_2_date + days(14),
-              end_1_date = start_1_date + days(28),
-              arm = "vax"),
+    select(patient_id, elig_date, svp_start_date, start_1_date, end_1_date),
   data_eligible_e_unvax[[1]] %>% 
-    transmute(patient_id, 
-              elig_date, 
-              svp_start_date,
-              start_1_date = svp_start_date + days(14),
-              end_1_date = start_1_date + days(56),
-              arm = "unvax") 
+    select(patient_id, elig_date, svp_start_date, start_1_date, end_1_date)
 ) %>%
-  mutate(across(ends_with("_date"), as.POSIXct)) %>%
-  left_join(data_processed %>% select(patient_id, subgroup),
-            by = "patient_id") %>%
-  group_by(subgroup) %>%
-  mutate(min_elig_date = min(elig_date)) %>%
-  ungroup() %>%
-  select(-subgroup)
+  mutate(across(ends_with("_date"), as.POSIXct)) 
 
 for (k in 2:study_parameters$K) {
   
