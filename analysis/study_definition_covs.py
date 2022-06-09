@@ -74,13 +74,6 @@ study=StudyDefinition(
         returning_type='date',
         date_format='YYYY-MM-DD'
         ),
-    # min elig date within subgroup
-    min_elig_date=patients.with_value_from_file(
-        f_path='output/data/data_eligible_e.csv', 
-        returning='min_elig_date', 
-        returning_type='date',
-        date_format='YYYY-MM-DD'
-        ),
     # comparison start and end dates
     **type_X_date("start", K),
     **type_X_date("end", K),
@@ -99,7 +92,7 @@ study=StudyDefinition(
     test_hist_n=patients.with_test_result_in_sgss(
         pathogen="SARS-CoV-2",
         test_result="any",
-        between=["2020-05-18", "min_elig_date - 1 day"], # day before 1st vaccine eligibility date
+        between=["2020-05-18", start_date], # day of 1st vaccine eligibility date
         restrict_to_earliest_specimen_date=False,
         returning="number_of_matches_in_period",
         return_expectations={"int" : {"distribution": "poisson", "mean": 2}, "incidence" : 0.6}
@@ -342,13 +335,13 @@ study=StudyDefinition(
     ### EVENTS ###
     ##############
     ## positive covid test
-    # latest on or before before start_1_date - 90 days
+    # latest on or before before start_1_date - 28 days
     postest_0_date=patients.with_test_result_in_sgss(
         pathogen="SARS-CoV-2",
         test_result="positive",
         returning="date",
         date_format="YYYY-MM-DD",
-        on_or_before="start_1_date - 90 days",
+        on_or_before="start_1_date - 28 days",
         find_last_match_in_period=True,
         restrict_to_earliest_specimen_date=False,
         return_expectations={
@@ -357,13 +350,13 @@ study=StudyDefinition(
             "incidence": 0.01
         },
     ),
-    # latest between [start_1_date - 89 days, start_1_date]
+    # latest between [start_1_date - 27 days, start_1_date]
     postest_1_date=patients.with_test_result_in_sgss(
         pathogen="SARS-CoV-2",
         test_result="positive",
         returning="date",
         date_format="YYYY-MM-DD",
-        between=["start_1_date - 89 days", "start_1_date"],
+        between=["start_1_date - 27 days", "start_1_date"],
         find_last_match_in_period=True,
         restrict_to_earliest_specimen_date=False,
         return_expectations={
@@ -389,12 +382,12 @@ study=StudyDefinition(
     ),
 
     ## probable covid case identified in primary care
-    # latest before start_1_date - 90 days
+    # latest before start_1_date - 28 days
     primary_care_covid_case_0_date=patients.with_these_clinical_events(
         covid_primary_care_probable_combined,
         returning="date",
         date_format="YYYY-MM-DD",
-        on_or_before="start_1_date - 90 days",
+        on_or_before="start_1_date - 28 days",
         find_last_match_in_period=True,
         return_expectations={
             "date": {"earliest": start_date, "latest": end_date},
@@ -402,12 +395,12 @@ study=StudyDefinition(
             "incidence": 0.01
         },
     ),
-    # latest between [start_1_date - 89 days, start_1_date]
+    # latest between [start_1_date - 27 days, start_1_date]
     primary_care_covid_case_1_date=patients.with_these_clinical_events(
         covid_primary_care_probable_combined,
         returning="date",
         date_format="YYYY-MM-DD",
-        between=["start_1_date - 89 days", "start_1_date"],
+        between=["start_1_date - 27 days", "start_1_date"],
         find_last_match_in_period=True,
         return_expectations={
             "date": {"earliest": start_date, "latest": end_date},
@@ -417,11 +410,11 @@ study=StudyDefinition(
     ),
     
     # covid hospitalisation:
-    # latest before start_1_date - 90 days
+    # latest before start_1_date - 28 days
     covidadmitted_0_date=patients.admitted_to_hospital(
         returning="date_admitted",
         with_these_diagnoses=covid_codes,
-        on_or_before="start_1_date - 90 days",
+        on_or_before="start_1_date - 28 days",
         find_last_match_in_period=True,
         date_format="YYYY-MM-DD",
         return_expectations={
@@ -430,11 +423,11 @@ study=StudyDefinition(
             "incidence": 0.01,
         },
     ),
-    # latest between [start_1_date - 89 days, start_1_date]
+    # latest between [start_1_date - 27 days, start_1_date]
     covidadmitted_1_date=patients.admitted_to_hospital(
         returning="date_admitted",
         with_these_diagnoses=covid_codes,
-        between=["start_1_date - 89 days", "start_1_date"],
+        between=["start_1_date - 27 days", "start_1_date"],
         find_last_match_in_period=True,
         date_format="YYYY-MM-DD",
         return_expectations={
@@ -471,5 +464,50 @@ study=StudyDefinition(
 
     # first occurence of any covid test in each comparison period
     **anytest_X_date(K),
+
+    ###################
+    ### CANCER FLAG ###
+    ###################
+
+    # non-haematological cancer
+    cancer_nonhaem_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_nonhaem_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+    ),
+    cancer_nonhaem_snomed_date=patients.with_these_clinical_events( 
+            cancer_nonhaem_snomed,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date",
+            date_format="YYYY-MM-DD",
+    ), 
+    
+    # haematological cancer
+    cancer_haem_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_haem_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+    ),
+    cancer_haem_snomed_date=patients.with_these_clinical_events( 
+            cancer_haem_snomed,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date",
+            date_format="YYYY-MM-DD",
+    ), 
+
+    # unspecified cancer
+    cancer_unspec_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_unspec_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+    ),
 
 )
