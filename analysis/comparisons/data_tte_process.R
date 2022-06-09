@@ -8,20 +8,6 @@
 library(tidyverse)
 library(glue)
 
-## import command-line arguments ----
-args <- commandArgs(trailingOnly=TRUE)
-
-if(length(args)==0){
-  # use for interactive testing
-  comparison <- "BNT162b2"
-  
-} else{
-  comparison <- args[[1]]
-}
-
-arm1 <- if_else(comparison =="ChAdOx1", "ChAdOx1", "BNT162b2")
-arm2 <- if_else(comparison == "both", "ChAdOx1", "unvax")
-
 ################################################################################
 study_parameters <- readr::read_rds(
   here::here("analysis", "lib", "study_parameters.rds"))
@@ -31,21 +17,10 @@ outcomes <- readr::read_rds(
   here::here("analysis", "lib", "outcomes.rds"))
 outcomes_death <- outcomes[str_detect(outcomes, "death")]
 
-# read subgroups
-subgroups <- readr::read_rds(
-  here::here("analysis", "lib", "subgroups.rds"))
-subgroup_labels <- seq_along(subgroups)
-if ("ChAdOx1" %in% c(arm1, arm2)) {
-  select_subgroups <- subgroups[subgroups != "18-39 years"]
-} else {
-  select_subgroups <- subgroups
-}
-
 ################################################################################
 # read data
 data_all <- readr::read_rds(
-  here::here("output", "data", "data_all.rds")) %>%
-  filter(arm %in% c(arm1, arm2))
+  here::here("output", "data", "data_all.rds")) 
 
 ################################################################################
 # redaction functions
@@ -59,8 +34,6 @@ fs::dir_create(here::here("output", "tte", "tables"))
 ################################################################################
 
 data <- data_all %>%
-  # filter subgroups
-  filter(subgroup %in% select_subgroups) %>%
   pivot_longer(
     cols = matches("\\w+_\\d_date"),
     names_to = c(".value", "k"),
@@ -74,7 +47,8 @@ data <- data_all %>%
       ((k %% 2) == 0 & split == "even") |
       ((k %% 2) != 0 & split == "odd")
   ) %>%
-  select(patient_id, k, jcvi_group, arm, subgroup, sex, ends_with("date"))
+  select(patient_id, k, jcvi_group, arm, sex, ends_with("date"), 
+         ends_with("subgroup"), starts_with("exclude"))
 
 ################################################################################
 # generates and saves data_tte and tabulates event counts 
