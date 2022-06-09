@@ -163,10 +163,10 @@ dummy_data_covs <- dummy_data_vax %>%
   #                 !is.na(coviddeath_date), 
   #                 coviddeath_date,
   #                 .x))) %>%
-  cancer_dates(name = "cancer_nonhaem_icd10_date") %>%
-  cancer_dates(name = "cancer_nonhaem_snomed_date") %>%
-  cancer_dates(name = "cancer_haem_icd10_date") %>%
-  cancer_dates(name = "cancer_haem_snomed_date") %>%
+  # cancer_dates(name = "cancer_nonhaem_icd10_date") %>%
+  # cancer_dates(name = "cancer_nonhaem_snomed_date") %>%
+  # cancer_dates(name = "cancer_haem_icd10_date") %>%
+  # cancer_dates(name = "cancer_haem_snomed_date") %>%
   mutate(across(contains("_date"), as.POSIXct)) %>%
   mutate(across(ends_with("date"), as.POSIXct)) %>%
   mutate(across(c(ethnicity_6, ethnicity_6_sus, jcvi_group, region, sex),
