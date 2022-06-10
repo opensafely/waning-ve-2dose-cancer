@@ -8,17 +8,6 @@ library(lubridate)
 study_parameters <- readr::read_rds(
   here::here("analysis", "lib", "study_parameters.rds"))
 
-# read subgroups
-subgroups <- readr::read_rds(
-  here::here("analysis", "lib", "subgroups.rds"))
-subgroup_labels <- seq_along(subgroups)
-subgroups_long <- if_else(
-  subgroups %in% subgroups[c(3,4)],
-  as.character(glue("{subgroups}*")),
-  subgroups
-)
-subgroups_long_wrap <- str_wrap(subgroups_long, width = 25)
-
 ################################################################################
 
 # if running locally read extracted data:
@@ -54,7 +43,7 @@ if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
   # read data
   data_all <- readr::read_rds(
     here::here("output", "data", "data_all.rds")) %>%
-    select(patient_id, subgroup, arm, start_1_date, end_6_date, subsequent_vax_date, dereg_date, death_date)
+    select(patient_id, arm, start_1_date, end_6_date, subsequent_vax_date, dereg_date, death_date)
   
   
   image_path <- here::here("output", "subsequent_vax", "images")
