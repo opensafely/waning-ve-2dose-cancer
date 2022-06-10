@@ -93,9 +93,9 @@ data_eligible_d <- data_eligible_a %>%
             by = "patient_id") %>%
   left_join(second_vax_period_dates, 
              by = c("jcvi_group", "elig_date", "region")) %>%
-  # remove individuals who had received any vaccination before the start of the second vax period
+  # remove individuals who had received any vaccination before the start of the second vax period + 14 days
   filter(
-    is.na(covid_vax_1_date) | covid_vax_1_date >= svp_start_date
+    is.na(covid_vax_1_date) | covid_vax_1_date >= svp_start_date + days(14)
   ) %>%
   select(patient_id, jcvi_group, elig_date, region, ethnicity, 
          covid_vax_1_date, svp_start_date, svp_end_date, split) %>%
@@ -103,7 +103,7 @@ data_eligible_d <- data_eligible_a %>%
 
 eligibility_count <- eligibility_count %>%
   add_row(
-    description = "unvax: unvaccinated at start of SVP",
+    description = "unvax: unvaccinated at start of SVP + 14 days (start_1_date)",
     n =  n_distinct(data_eligible_d$patient_id),
     stage = "d-in"
   )
@@ -179,7 +179,7 @@ exclusion_e <- function(group) {
       n =  n_distinct(data$patient_id)
     )
   
-  # remove id deregistered before start_1_date
+  # remove if deregistered before start_1_date
   data <- data %>%
     filter(
       no_evidence_of(dereg_date, start_1_date)
@@ -190,6 +190,36 @@ exclusion_e <- function(group) {
       description = as.character(glue("{group}: Deregistrered before start_1_date.")),
       n =  n_distinct(data$patient_id)
     )
+  
+  # remove if subsequent vax before start_1_date
+  if (group == "vax") {
+    
+    data <- data %>%
+      filter(
+        no_evidence_of(covid_vax_3_date, start_1_date)
+      ) 
+    
+    eligibility_count_e <- eligibility_count_e %>%
+      add_row(
+        description = as.character(glue("{group}: 3rd dose before start_1_date.")),
+        n =  n_distinct(data$patient_id)
+      )
+    
+  } else {
+    
+    data <- data %>%
+      filter(
+        no_evidence_of(covid_vax_1_date, start_1_date)
+      ) 
+    
+    eligibility_count_e <- eligibility_count_e %>%
+      add_row(
+        description = as.character(glue("{group}: 1st dose before start_1_date.")),
+        n =  n_distinct(data$patient_id)
+      )
+    
+  }
+  
   
   data <- data %>%
     select(-all_of(names(data_processed)[!names(data_processed) %in% "patient_id"]))
