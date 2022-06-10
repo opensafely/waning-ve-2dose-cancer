@@ -92,7 +92,13 @@ data_all <- data_arm %>%
       multimorb,
       breaks = c(0, 1, 2, Inf),
       labels=c("0", "1", "2+"),
-      right=FALSE)
+      right=FALSE),
+    
+    noncoviddeath_date = if_else(
+      !is.na(death_date) & is.na(coviddeath_date),
+      death_date,
+      as.Date(NA_character_)
+      )
     
   ) %>%
   mutate(across(test_hist_n,
@@ -119,7 +125,7 @@ data_all <- data_arm %>%
     
     # those to exclude when positive test is outcome
     exclude_postest = if_else(
-      !is.na(postest_1_date) | !is.na(primary_care_covid_case_1_date),
+      !is.na(postest_1_date) | !is.na(primary_care_covid_case_1_date) | !is.na(covidadmitted_1_date),
       TRUE, FALSE
     ),
     
