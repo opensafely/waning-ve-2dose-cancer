@@ -188,8 +188,7 @@ readr::write_rds(
 outcomes <- c(
   "Any SARS-CoV-2 test" = "anytest", 
   "Positive SARS-CoV-2 test" = "postest", 
-  "COVID-19 hospitalisation (APCS)" = "covidadmitted",
-  "COVID-19 hospitalisation (ECDS)" = "covidemergency",
+  "COVID-19 hospitalisation" = "covidadmitted",
   "COVID-19 death" = "coviddeath", 
   "Non-COVID-19 death" = "noncoviddeath")
 
@@ -534,23 +533,14 @@ actions_list <- splice(
           "####################################"),
   
   comment(glue("process tte data")),
-  splice(unlist(lapply(
-    comparisons,
-    function(x)
-      action(
-        name = glue("data_tte_process_{x}"),
-        run = "r:latest analysis/comparisons/data_tte_process.R",
-        arguments = x,
-        needs = list("data_covariates_process"),
-        highly_sensitive = list(
-          data_tte_brand_outcome = glue("output/tte/data/data_tte_{x}*.rds")
-        ),
-        moderately_sensitive = list(
-          event_counts_csv = glue("output/tte/data/event_counts_{x}.csv"),
-          event_counts_txt = glue("output/tte/tables/event_counts_{x}.txt")
-        )
-      )
-  ), recursive = FALSE)),
+  action(
+    name = glue("data_tte_process"),
+    run = "r:latest analysis/comparisons/data_tte_process.R",
+    needs = list("data_covariates_process"),
+    highly_sensitive = list(
+      data_tte_outcome = glue("output/tte/data/data_tte_*.rds")
+    )
+  ),
   
 
   comment("check distribution of follow-up time in relation to variant dates"),
