@@ -470,14 +470,14 @@ study=StudyDefinition(
     ###################
 
     # non-haematological cancer
-    cancer_nonhaem_icd10_date=patients.admitted_to_hospital(
+    cancer_solid_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_nonhaem_icd10,
             on_or_after="2018-01-01",
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
     ),
-    cancer_nonhaem_snomed_date=patients.with_these_clinical_events( 
+    cancer_solid_snomed_date=patients.with_these_clinical_events( 
             cancer_nonhaem_snomed,
             on_or_after="2018-01-01",
             find_first_match_in_period=True,

@@ -147,8 +147,8 @@ multimorb <-c(
 demographic <- c(
   "Age" = "age",
   "Sex" = "sex",
-  "IMD" = "imd",
-  "Ethnicity" = "ethnicity"
+  "IMD" = "imd"#,
+  # "Ethnicity" = "ethnicity" # drop as Lee et al. did not adjust for ethnicity
 )
 
 readr::write_rds(
@@ -172,12 +172,15 @@ readr::write_rds(
 ################################################################################
 # subgroups ----
 subgroups <- c(
-  "65+ years",
-  "18-64 years and clinically vulnerable", 
-  "40-64 years",
-  "18-39 years"
-  )
-
+  "cancer",
+  "noncancer",
+  "haem",
+  "solid",
+  "cancer_18-69",
+  "cancer_70+",
+  "noncancer_18-69",
+  "noncancer_70+"
+)
 readr::write_rds(
   subgroups,
   here::here("analysis", "lib", "subgroups.rds")
@@ -209,24 +212,6 @@ readr::write_rds(
   comparisons,
   here::here("analysis", "lib", "comparisons.rds")
 )
-
-# ################################################################################
-# # create bash script for generating study definitions from template
-# create_study_definitions <- 
-#   str_c("# Run this script to create a study_definition for each k",
-#         "",
-#         str_c("for i in {1..",K,"}; do"),
-#         "sed -e \"s;%placeholder_k%;$i;g\" ./analysis/study_definition_k.py > ./analysis/study_definition_$i.py;",
-#         "done;", sep = "\n")
-# 
-# create_study_definitions %>%
-#   writeLines(here::here("analysis/create_study_definitions.sh"))
-# 
-# # create study definitions from template_study_definition.py
-# check_create <- try(processx::run(command="bash", args= "analysis/create_study_definitions.sh"))
-# 
-# if (inherits(check_create, "try-error")) stop("Study definitions not created.")
-
 
 ################################################################################
 # create action functions ----
@@ -282,47 +267,48 @@ convert_comment_actions <-function(yaml.txt){
 
 ## actions that extract and process data ----
 apply_model_fun <- function(
-  subgroup_label,
+  subgroup_index,
   comparison,
-  outcome
+  outcome,
+  include_prior_infection
 ) {
   
-  subgroup <- subgroups[subgroup_label]
+  subgroup <- subgroups[subgroup_index]
   
   splice(
-    comment(glue("{comparison}; {subgroup_label}; {outcome}")),
+    comment(glue("{comparison}; {subgroup_index}; {include_prior_infection}; {outcome}")),
     comment("preflight checks"),
     action(
-      name = glue("preflight_{comparison}_{subgroup_label}_{outcome}"),
+      name = glue("preflight_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}"),
       run = "r:latest analysis/comparisons/preflight.R",
-      arguments = c(comparison, subgroup_label, outcome),
+      arguments = c(comparison, subgroup_index, include_prior_infection, outcome),
       needs = list(
         "data_covariates_process", 
-        glue("data_tte_process_{comparison}")
+        "data_tte_process"
         ),
       highly_sensitive = list(
-        model_input = glue("output/preflight/data/model_input_{comparison}_{subgroup_label}_{outcome}*.rds")
+        model_input = glue("output/preflight/data/model_input*.rds")
       ),
       moderately_sensitive = list(
-        eventcheck_table = glue("output/preflight/tables/eventcheck_{comparison}_{subgroup_label}_{outcome}*.html"),
-        preflight_report = glue("output/preflight/tables/preflight_report_{comparison}_{subgroup_label}_{outcome}*.txt")
+        eventcheck_table = glue("output/preflight/tables/eventcheck*.html"),
+        preflight_report = glue("output/preflight/tables/preflight_report*.txt")
       )
     ),
     comment("apply cox model"),
     action(
-      name = glue("apply_model_cox_{comparison}_{subgroup_label}_{outcome}"),
+      name = glue("apply_model_cox_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}"),
       run = "r:latest analysis/comparisons/apply_model_cox_update.R",
-      arguments = c(comparison, subgroup_label, outcome),
+      arguments = c(comparison, subgroup_index, include_prior_infection, outcome),
       needs = list(
-        glue("preflight_{comparison}_{subgroup_label}_{outcome}")),
+        glue("preflight_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}")),
       highly_sensitive = list(
-        modelnumber = glue("output/models_cox/data/model*_{comparison}_{subgroup_label}_{outcome}*.rds"),
-        model_tidy_rds = glue("output/models_cox/data/modelcox_tidy_{comparison}_{subgroup_label}_{outcome}*.rds"),
-        model_glance_rds = glue("output/models_cox/data/modelcox_glance_{comparison}_{subgroup_label}_{outcome}*.rds")
+        model_object = glue("output/models_cox/data/model_object*.rds"),
+        model_tidy_rds = glue("output/models_cox/data/modelcox_tidy*.rds"),
+        model_glance_rds = glue("output/models_cox/data/modelcox_glance*.rds")
       ),
       moderately_sensitive = list(
-        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy_{comparison}_{subgroup_label}_{outcome}.txt"),
-        model_glance_txt = glue("output/models_cox/temp/modelcox_glance_{comparison}_{subgroup_label}_{outcome}.txt")
+        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy*.txt"),
+        model_glance_txt = glue("output/models_cox/temp/modelcox_glance*.txt")
       )
     )
     
@@ -337,7 +323,7 @@ defaults_list <- list(
   expectations= list(population_size=100000L)
 )
 
-subgroup_labels <- seq_along(subgroups)
+subgroup_indexs <- seq_along(subgroups)
 
 ## actions ----
 actions_list <- splice(
@@ -541,101 +527,149 @@ actions_list <- splice(
       data_tte_outcome = glue("output/tte/data/data_tte_*.rds")
     )
   ),
-  
 
-  comment("check distribution of follow-up time in relation to variant dates"),
-  action(
-    name = "check_fu",
-    run = "r:latest analysis/comparisons/check_fu.R",
-    needs = list("data_covariates_process"),
-    moderately_sensitive = list(
-      check_fu_plot = "output/tte/images/check_fu_*.png",
-      check_fu_plot_data = "output/tte/images/check_fu_*.txt"
-    )
-  ),
+  # comment("check distribution of follow-up time in relation to variant dates"),
+  # action(
+  #   name = "check_fu",
+  #   run = "r:latest analysis/comparisons/check_fu.R",
+  #   needs = list("data_covariates_process"),
+  #   moderately_sensitive = list(
+  #     check_fu_plot = "output/tte/images/check_fu_*.png",
+  #     check_fu_plot_data = "output/tte/images/check_fu_*.txt"
+  #   )
+  # ),
   
   comment("####################################",
           "apply models", 
           "####################################"),
-  splice(
-    # over subgroups
-    unlist(lapply(
-      comparisons,
-
-      function(x) {
-        if (!(x %in% "BNT162b2")) {
-          subgroup_labels <- subgroup_labels[subgroups != "18-39 years"]
-        }
-        unlist(lapply(
-          unname(c(
-            unlist(lapply(
-              subgroup_labels, function(sub) 
-                sapply(c("", "_Female", "_Male"), 
-                       function(sex) glue("{sub}{sex}")
-                ))),
-            sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
-          )),
-          function(y)
-            splice(
-            unlist(lapply(
-              unname(outcomes_model),
-
-              function(z)
-              apply_model_fun(
-                comparison = x,
-                subgroup_label = y,
-                outcome = z)
-            ),
-            recursive = FALSE)
-            )
-          
-        ),
-        recursive = FALSE)
-      }
-    ), recursive = FALSE)
+  
+  comment("Subgroup indexes are as follows:"),
+  
+  splice(unlist(lapply(
+    1:length(subgroups),
+    function(x)
+      comment(glue("{x} = {subgroups[x]}"))
+  ), 
+  recursive = FALSE)
   ),
   
-  comment("combine all estimates for release"),
-  action(
-    name = glue("combine_estimates"),
-    run = "r:latest analysis/comparisons/combine_estimates.R",
-    needs = splice(
+  comment(" "),
+  
+  comment("Main analysis for comparison with Lee et al."),
+  
+  splice(
+    unlist(
       lapply(
-        comparisons[comparisons != "both"], 
-        function(x) glue("data_tte_process_{x}")
-        ),
-      as.list(unlist(lapply(
         comparisons,
         function(x)
-        {
-          if (x %in% c("ChAdOx1", "both")) {
-            ys <- subgroup_labels[subgroups != "18-39 years"]
-          } else {
-            ys <- subgroup_labels
-          }
-          unlist(lapply(
-            unname(c(
-              unlist(lapply(
-                ys, function(sub) 
-                  sapply(c("", "_Female", "_Male"), 
-                         function(sex) glue("{sub}{sex}")
-                  ))),
-              sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
-            )),
-            function(y)
-              unlist(lapply(
-                unname(outcomes_model),
-                function(z)
-                  glue("apply_model_cox_{x}_{y}_{z}")
-              ), recursive = FALSE)
-          ), recursive = FALSE)
-        }
-      ), recursive = FALSE))),
-    moderately_sensitive = list(
-      event_counts_all = glue("output/release_objects/event_counts*.csv"),
-      estimates_all = glue("output/release_objects/estimates*.csv")
+          splice(
+            unlist(
+              lapply(
+                c(1,2),
+                function(y)
+                  splice(
+                    unlist(
+                      lapply(
+                        unname(outcomes),
+                        function(z)
+                          apply_model_fun(
+                            comparison = x,
+                            subgroup_index = y,
+                            outcome = z,
+                            include_prior_infection = TRUE
+                            )
+                      ),
+                      recursive = FALSE
+                    )
+                  )
+              ),
+              recursive = FALSE
+            )
+          )
+      ),
+      recursive = FALSE
     )
   ),
+  
+  # splice(
+  #   # over subgroups
+  #   unlist(lapply(
+  #     comparisons,
+  # 
+  #     function(x) {
+  #       if (!(x %in% "BNT162b2")) {
+  #         subgroup_indexs <- subgroup_indexs[subgroups != "18-39 years"]
+  #       }
+  #       unlist(lapply(
+  #         unname(c(
+  #           unlist(lapply(
+  #             subgroup_indexs, function(sub) 
+  #               sapply(c("", "_Female", "_Male"), 
+  #                      function(sex) glue("{sub}{sex}")
+  #               ))),
+  #           sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
+  #         )),
+  #         function(y)
+  #           splice(
+  #           unlist(lapply(
+  #             unname(outcomes_model),
+  # 
+  #             function(z)
+  #             apply_model_fun(
+  #               comparison = x,
+  #               subgroup_index = y,
+  #               outcome = z)
+  #           ),
+  #           recursive = FALSE)
+  #           )
+  #         
+  #       ),
+  #       recursive = FALSE)
+  #     }
+  #   ), recursive = FALSE)
+  # ),
+  # 
+  # comment("combine all estimates for release"),
+  # action(
+  #   name = glue("combine_estimates"),
+  #   run = "r:latest analysis/comparisons/combine_estimates.R",
+  #   needs = splice(
+  #     lapply(
+  #       comparisons[comparisons != "both"], 
+  #       function(x) glue("data_tte_process_{x}")
+  #       ),
+  #     as.list(unlist(lapply(
+  #       comparisons,
+  #       function(x)
+  #       {
+  #         if (x %in% c("ChAdOx1", "both")) {
+  #           ys <- subgroup_indexs[subgroups != "18-39 years"]
+  #         } else {
+  #           ys <- subgroup_indexs
+  #         }
+  #         unlist(lapply(
+  #           unname(c(
+  #             unlist(lapply(
+  #               ys, function(sub) 
+  #                 sapply(c("", "_Female", "_Male"), 
+  #                        function(sex) glue("{sub}{sex}")
+  #                 ))),
+  #             sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
+  #           )),
+  #           function(y)
+  #             unlist(lapply(
+  #               unname(outcomes_model),
+  #               function(z)
+  #                 glue("apply_model_cox_{x}_{y}_{z}")
+  #             ), recursive = FALSE)
+  #         ), recursive = FALSE)
+  #       }
+  #     ), recursive = FALSE))),
+  #   moderately_sensitive = list(
+  #     event_counts_all = glue("output/release_objects/event_counts*.csv"),
+  #     estimates_all = glue("output/release_objects/estimates*.csv")
+  #   )
+  # ),
   
   comment("####################################",
           "plot to check estimates", 

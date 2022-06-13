@@ -138,7 +138,7 @@ data_all <- data_arm %>%
     # cancer subgroups
     cancer_subgroup = case_when(
       !is.na(cancer_haem_icd10_date) | !is.na(cancer_haem_snomed_date) ~ "cancer_haem",
-      !is.na(cancer_nonhaem_icd10_date) | !is.na(cancer_nonhaem_snomed_date) ~ "cancer_nonhaem",
+      !is.na(cancer_solid_icd10_date) | !is.na(cancer_solid_snomed_date) ~ "cancer_solid",
       !is.na(cancer_unspec_icd10_date) ~ "cancer_unspec",
       TRUE ~ "noncancer"
     ),
