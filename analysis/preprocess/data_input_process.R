@@ -2,9 +2,9 @@
 
 # This script:
 # - reads, processes the extracted data, saves the following:
-# - data_covs.rds = wide covariates and outcome data
+# - data_processed.rds = processed data to be used for applying eligibility criteria
+# - data_processed_0_tabulate.txt = summary of extracted data for checking
 # - data_*_vax_dates.rds = long and wide vaccine data
-# - data_long_*_dates.rds = long covariates and outcome data
 
 ################################################################################
 
