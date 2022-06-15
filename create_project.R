@@ -287,11 +287,11 @@ apply_model_fun <- function(
         "data_tte_process"
         ),
       highly_sensitive = list(
-        model_input = glue("output/preflight/data/model_input*.rds")
+        model_input = glue("output/preflight/data/model_input_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.rds")
       ),
       moderately_sensitive = list(
-        eventcheck_table = glue("output/preflight/tables/eventcheck*.html"),
-        preflight_report = glue("output/preflight/tables/preflight_report*.txt")
+        eventcheck_table = glue("output/preflight/tables/eventcheck_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.html"),
+        preflight_report = glue("output/preflight/tables/preflight_report_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.txt")
       )
     ),
     comment("apply cox model"),
@@ -302,13 +302,13 @@ apply_model_fun <- function(
       needs = list(
         glue("preflight_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}")),
       highly_sensitive = list(
-        model_object = glue("output/models_cox/data/model_object*.rds"),
-        model_tidy_rds = glue("output/models_cox/data/modelcox_tidy*.rds"),
-        model_glance_rds = glue("output/models_cox/data/modelcox_glance*.rds")
+        model_object = glue("output/models_cox/data/model_object_*_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.rds"),
+        model_tidy_rds = glue("output/models_cox/data/modelcox_tidy_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.rds"),
+        model_glance_rds = glue("output/models_cox/data/modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.rds")
       ),
       moderately_sensitive = list(
-        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy*.txt"),
-        model_glance_txt = glue("output/models_cox/temp/modelcox_glance*.txt")
+        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.txt"),
+        model_glance_txt = glue("output/models_cox/temp/modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.txt")
       )
     )
     
@@ -461,23 +461,23 @@ actions_list <- splice(
       "data_eligible_cde", 
       "generate_covs_data"
       ),
-    moderately_sensitive = list(
-      data_min_max_fu_csv = "output/lib/data_min_max_fu.csv"
-    ),
+    # moderately_sensitive = list(
+    #   data_min_max_fu_csv = "output/lib/data_min_max_fu.csv"
+    # ),
     highly_sensitive = list(
       data_covariates = "output/data/data_all.rds"
     )
   ),
   
-  # comment("min and max follow-up dates for plots"),
-  # action(
-  #   name = "data_min_max_fu",
-  #   run = "r:latest analysis/comparisons/data_min_max_fu.R",
-  #   needs = list("data_covariates_process"),
-  #   moderately_sensitive = list(
-  #     data_min_max_fu_csv = "output/lib/data_min_max_fu.csv"
-  #   )
-  # ),
+  comment("min and max follow-up dates for plots"),
+  action(
+    name = "data_min_max_fu",
+    run = "r:latest analysis/comparisons/data_min_max_fu.R",
+    needs = list("data_covariates_process"),
+    moderately_sensitive = list(
+      data_min_max_fu_csv = "output/lib/data_min_max_fu.csv"
+    )
+  ),
   
   comment("####################################",
           "subsequent vaccination", 
@@ -525,6 +525,16 @@ actions_list <- splice(
     needs = list("data_covariates_process"),
     highly_sensitive = list(
       data_tte_outcome = glue("output/tte/data/data_tte_*.rds")
+    )
+  ),
+  
+  comment("event counts"),
+  action(
+    name = "event_counts",
+    run = "r:latest analysis/comparisons/event_counts.R",
+    needs = list("data_tte_process"),
+    moderately_sensitive = list(
+      event_couts = "output/tte/tables/event_counts.csv"
     )
   ),
 
@@ -589,7 +599,7 @@ actions_list <- splice(
       ),
       recursive = FALSE
     )
-  ),
+  )#,
   
   # splice(
   #   # over subgroups
@@ -671,33 +681,33 @@ actions_list <- splice(
   #   )
   # ),
   
-  comment("####################################",
-          "plot to check estimates", 
-          "####################################"),
-  action(
-    name = "plot_check",
-    run = "r:latest analysis/comparisons/plot_cox_check.R",
-    needs = list(
-      "combine_estimates"
-      ),
-    moderately_sensitive = list(
-      plot_check = "output/models_cox/images/plot_check*.svg"
-    )
-  ),
-  
-  comment("####################################",
-          "plot to check coefs", 
-          "####################################"),
-  action(
-    name = "plot_check_coefs",
-    run = "r:latest analysis/comparisons/plot_coefs.R",
-    needs = list(
-      "combine_estimates"
-    ),
-    moderately_sensitive = list(
-      plot_coefs = "output/models_cox/images/coefs*.png"
-    )
-  )#,
+  # comment("####################################",
+  #         "plot to check estimates", 
+  #         "####################################"),
+  # action(
+  #   name = "plot_check",
+  #   run = "r:latest analysis/comparisons/plot_cox_check.R",
+  #   needs = list(
+  #     "combine_estimates"
+  #     ),
+  #   moderately_sensitive = list(
+  #     plot_check = "output/models_cox/images/plot_check*.svg"
+  #   )
+  # ),
+  # 
+  # comment("####################################",
+  #         "plot to check coefs", 
+  #         "####################################"),
+  # action(
+  #   name = "plot_check_coefs",
+  #   run = "r:latest analysis/comparisons/plot_coefs.R",
+  #   needs = list(
+  #     "combine_estimates"
+  #   ),
+  #   moderately_sensitive = list(
+  #     plot_coefs = "output/models_cox/images/coefs*.png"
+  #   )
+  # ),
   
   # comment("####################################",
   #         "move objects for release",
