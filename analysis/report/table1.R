@@ -12,6 +12,10 @@ fs::dir_create(here::here("output", "report", "tables"))
 model_varlist <- readr::read_rds(
   here::here("analysis", "lib", "model_varlist.rds"))
 
+# read comparisons
+comparisons <- readr::read_rds(
+  here::here("analysis", "lib", "comparisons.rds"))
+
 # read strata_vars
 strata_vars <- readr::read_rds(
   here::here("analysis", "lib", "strata_vars.rds"))
@@ -36,7 +40,7 @@ no_evidence_of <- function(cov_date, index_date) {
 }
 
 ################################################################################
-# prepare data
+# prepare data and create eligibility count tibble for flow diagram
 data_tables_0 <- data_all %>%
   mutate(group = if_else(arm == "unvax", "unvax", "vax"))
 
@@ -116,7 +120,7 @@ readr::write_csv(
   here::here("output", "tables", "eligibility_count_p1.csv"))
 
 ################################################################################
-# combine eligibility count tables
+# combine and save eligibility count tables
 eligibility_count_all <- bind_rows(
   readr::read_csv(here::here("output", "tables", "eligibility_count_ab.csv")),
   readr::read_csv(here::here("output", "tables", "eligibility_count_cde.csv")),
@@ -128,16 +132,223 @@ readr::write_csv(
   here::here("output", "tables", "eligibility_count_all.csv"))
 
 ################################################################################
-# split data in subgroups
+# function for table1 for each analysis
+make_table1 <- function(data, include_prior_infection = TRUE) {
+  
+  # get the name of the data object to label the analysis
+  data_name <- str_remove(deparse(substitute(data)), "data_")
+  
+  cat(glue("---- {data_name} ----\n"))
+  
+  # remove those with prior infection if necessary
+  if (!include_prior_infection) {
+    data <- data %>% filter(!prior_infection_subgroup)
+  }
+  
+  cat("---- split dataset by subgroup ----\n")
+  data <- data %>%
+    select(patient_id, arm, region, jcvi_group, subgroup, ethnicity,
+           all_of(c(unname(model_varlist$demographic), unname(model_varlist$clinical)))) %>%
+    group_split(subgroup)
+  
+  
+  cat("---- define obejcts ----\n")
+  variables <- c(unname(strata_vars), unname(c(model_varlist$demographic, "ethnicity", model_varlist$clinical)))
+  variables <- variables[variables != "age"]
+  vars_ordered_levs <- c("region", "jcvi_group", "sex", "imd", "ethnicity", "bmi", "multimorb", "test_hist_n")
+  
+  
+  ethnicity_var <- "ethnicity"
+  names(ethnicity_var) <- "Ethnicity"
+  # tibble for assigning tidy variable names
+  var_labels <- tibble(
+    variable = c(
+      strata_vars,
+      model_varlist$clinical, 
+      # model_varlist$multimorb, 
+      ethnicity_var,
+      model_varlist$demographic),
+    variable_label = names(c(
+      strata_vars, 
+      model_varlist$clinical, 
+      # model_varlist$multimorb,
+      ethnicity_var,
+      model_varlist$demographic))
+  )
+  
+  # define function to summarise each variable and (within variables) 
+  summary_var <- function(.data, var) {
+    out <- .data %>%
+      group_by(arm, !! sym(var)) %>%
+      count() %>%
+      ungroup(!! sym(var)) %>%
+      mutate(arm_total = sum(n)) %>%
+      ungroup() %>%
+      # round all frequencies up to nearest 7
+      mutate(across(n, ~ceiling_any(.x, to=7))) %>%
+      mutate(percent = round(100*n/arm_total,0)) %>%
+      mutate(across(n, ~scales::comma(.x, accuracy = 1))) %>%
+      mutate(value = as.character(glue("{n} ({percent}%)"))) %>%
+      select(arm, !! sym(var), value) %>%
+      pivot_wider(
+        names_from = arm, 
+        values_from = value
+      ) %>%
+      mutate(variable = var) %>%
+      rename("category" = !! sym(var))
+    
+    if (is.logical(out$category)) {
+      out <- out %>%
+        filter(category) %>%
+        mutate(across(category, ~ "yes"))
+    }
+    
+    out %>% mutate(across(category, as.character))
+    
+  }
+  
+  # empty list for output
+  table1_tidy_n <- list()
+  # subgroups in analysis
+  table1_subgroups <- sapply(data, function(x) x$subgroup[[1]])
+  # for each subgroup in the data
+  for (i in seq_along(data)) {
+    # capture subgroup label
+    subgroup_labels <- data[[i]]$subgroup[[1]]
+   
+    # define function for creating tibble of categories for each variable
+    var_tibble <- function(var) {
+      var_region <- tibble(
+        variable = var,
+        category = levels(data[[i]][[var]])
+      )
+    }
+    
+    # tibble for specifying order of variables and categories
+    var_order <- tibble(
+      variable = variables
+    ) %>%
+      left_join(
+        bind_rows(
+          lapply(vars_ordered_levs,
+                 var_tibble)),
+        by = "variable"
+      ) %>%
+      mutate(across(category, ~ if_else(is.na(.x), "yes", .x)))
+    
+    cat("---- make table 1 ----\n")
+    # make table1
+    table1 <- bind_rows(lapply(
+      variables,
+      function(x)
+        data[[i]] %>% summary_var(var = x)
+    ))
+    
+    cat("---- tidy table 1 ----\n")
+    table1_tidy <- var_order %>% 
+      left_join(var_labels, by = "variable") %>%
+      left_join(table1, by = c("category", "variable")) %>%
+      rename(Variable = variable_label, Characteristic = category, Unvaccinated = unvax) %>%
+      select(-variable) %>%
+      select(Variable, Characteristic, everything()) %>%
+      mutate(across(c(BNT162b2, ChAdOx1, Unvaccinated), 
+                    ~ if_else(is.na(.x), "- (-%)", .x))) 
+    
+    cat("---- age summary ----\n")
+    age_summary <- data[[i]] %>%
+      group_by(arm) %>%
+      summarise(
+        median = median(age, na.rm=TRUE),
+        iqr = IQR(age, na.rm = TRUE),
+        .groups = "keep") %>% 
+      ungroup() %>%
+      transmute(arm, value = as.character(glue("{median} ({iqr})"))) %>%
+      pivot_wider(names_from = "arm", values_from = "value") %>%
+      mutate(Variable = "Age", Characteristic = "Median (IQR)") 
+    
+    cat("---- bind table1 parts ----\n")
+    table1_tidy_n[[i]] <- data[[i]] %>% 
+      group_by(arm) %>% 
+      count() %>% 
+      ungroup() %>% 
+      # round total counts up to nearest 7
+      mutate(across(n, ~ceiling_any(.x, to=7))) %>%
+      pivot_wider(names_from = arm, values_from = n) %>% 
+      mutate(Variable = "", Characteristic = "N") %>%
+      mutate(across(c(BNT162b2, ChAdOx1, unvax), 
+                    ~ scales::comma(.x, accuracy = 1))) %>%
+      bind_rows(
+        age_summary
+      ) %>%
+      rename(Unvaccinated = unvax) %>%
+      bind_rows(
+        table1_tidy
+      )
+     
+  }
+  
+  cat("---- join table1 subgroups ----\n")
+  out <- table1_tidy_n[[1]] %>%
+    rename_with(
+      .fn = ~str_c(.x, "_", which(subgroups == table1_subgroups[1])),
+      .cols = any_of(c(comparisons, "Unvaccinated"))
+      )
+  for (i in 2:length(data)) {
+    out <- out %>% 
+      left_join(
+        table1_tidy_n[[i]] %>%
+          rename_with(
+            .fn = ~str_c(.x, "_", which(subgroups == table1_subgroups[i])),
+            .cols = any_of(c(comparisons, "Unvaccinated"))
+            ),
+            .cols = any_of(c(comparisons, "Unvaccinated")), 
+        by = c("Variable", "Characteristic")
+        )
+  }
+  
+  out <- out %>% select(
+    Variable, Characteristic, ends_with(as.character(seq_along(data)))
+    )
+  
+  cat("---- save table1.csv ----\n")
+  # save table1_tidy
+  readr::write_csv(out,
+                   here::here("output", "report", "tables", glue("table1_{data_name}_{include_prior_infection}_REDACTED.csv")))
+  
+  cat("---- save table1.html ----\n")
+  out %>%
+    gt(
+      groupname_col="Variable",
+      rowname_col = "Characteristic"
+    ) %>%
+    tab_header(
+      title = glue("Analysis: {data_name}"),
+      subtitle = "Patient characteristics as of second vaccination period + 2 weeks") %>%
+    tab_style(
+      style = cell_text(weight="bold"),
+      locations = list(
+        cells_column_labels(
+          columns = everything()
+        ),
+        cells_row_groups(
+          groups = everything()
+        ))
+    ) %>%
+    gtsave(
+      filename = glue("table1_{data_name}_{include_prior_infection}_REDACTED.html"),
+      path = here::here("output", "report", "tables")
+    )
+  
+}
+
+################################################################################
+# create a dataset for each analysis
 
 # data_main for cancer vs noncancer
 data_main <- data_tables %>%
   mutate(
     subgroup = if_else(cancer_subgroup == "noncancer", "noncancer", "cancer")
-    )  %>%
-  select(patient_id, arm, region, jcvi_group, subgroup, ethnicity,
-         all_of(c(unname(model_varlist$demographic), unname(model_varlist$clinical)))) %>% 
-  group_split(subgroup) %>% as.list()
+  ) 
 
 # data_type for haem vs solid
 data_type <- data_tables %>%
@@ -146,418 +357,20 @@ data_type <- data_tables %>%
       cancer_subgroup %in% c("cancer_haem", "cancer_solid"),
       str_remove(cancer_subgroup, "cancer_"),
       NA_character_
-      )
-    ) %>%
-  filter(!is.na(subgroup)) %>%
-  select(patient_id, arm, region, jcvi_group, subgroup, ethnicity,
-         all_of(c(unname(model_varlist$demographic), unname(model_varlist$clinical)))) %>% 
-  group_split(subgroup) %>% as.list()
+    )
+  ) %>%
+  filter(!is.na(subgroup)) 
 
 # data_age for cancer vs non cancer in age groups
 data_age <- data_tables %>%
   mutate(
     subgroup = str_c(if_else(cancer_subgroup == "noncancer", "noncancer", "cancer"), age_subgroup, sep = "; ")
-    )  %>%
-  select(patient_id, arm, region, jcvi_group, subgroup, ethnicity,
-         all_of(c(unname(model_varlist$demographic), unname(model_varlist$clinical)))) %>% 
-  group_split(subgroup) %>% as.list()
-
-data_tables_list <- splice(data_main, data_type, data_age)
+  ) 
 
 ################################################################################
-# function to summarise each variable and (within variables) 
-# round all frequencies up to nearest 7
-summary_var <- function(.data, var) {
-  out <- .data %>%
-    group_by(arm, !! sym(var)) %>%
-    count() %>%
-    ungroup(!! sym(var)) %>%
-    mutate(arm_total = sum(n)) %>%
-    ungroup() %>%
-    mutate(across(n, ~ceiling_any(.x, to=7))) %>%
-    mutate(percent = round(100*n/arm_total,0)) %>%
-    mutate(across(n, ~scales::comma(.x, accuracy = 1))) %>%
-    mutate(value = as.character(glue("{n} ({percent}%)"))) %>%
-    select(arm, !! sym(var), value) %>%
-    pivot_wider(
-      names_from = arm, 
-      values_from = value
-    ) %>%
-    mutate(variable = var) %>%
-    rename("category" = var)
-  
-  if (is.logical(out$category)) {
-    out <- out %>%
-      filter(category) %>%
-      mutate(across(category, ~ "yes"))
-  }
-  
-  out %>% mutate(across(category, as.character))
-  
+# apply the function to each of the analysis datasets
+for (x in c(TRUE, FALSE)) {
+  make_table1(data = data_main, include_prior_infection = x)
+  make_table1(data = data_type, include_prior_infection = x)
+  make_table1(data = data_age, include_prior_infection = x)
 }
-
-################################################################################
-# make table1 for all and each subgroup
-make_table1 <- function(.data) {
-  
-  cat("---- define obejcts ----\n")
-  variables <- c(unname(strata_vars), unname(c(model_varlist$demographic, "ethnicity", model_varlist$clinical)))
-  variables <- variables[variables != "age"]
-  vars_ordered_levs <- c("region", "jcvi_group", "sex", "imd", "ethnicity", "bmi", "multimorb", "test_hist_n")
-  subgroup_label <- .data$subgroup[[1]]
-  
-  # tibble for assigning tidy variable names
-  var_labels <- tibble(
-    variable = c(
-      strata_vars,
-      model_varlist$clinical, 
-      # model_varlist$multimorb, 
-      model_varlist$demographic),
-    variable_label = names(c(
-      strata_vars, 
-      model_varlist$clinical, 
-      # model_varlist$multimorb,
-      model_varlist$demographic))
-  )
-  
-  if (i == 0) {
-    
-    data <- bind_rows(data_tables) %>%
-      droplevels()
-    
-    subgroup <- "All subgroups"
-    subgroup_label <- 5
-    
-    variables <- c("subgroup", variables)
-    vars_ordered_levs <- c("subgroup", vars_ordered_levs)
-    
-    var_labels <- var_labels %>%
-      add_row(variable = "subgroup", variable_label = "Subgroup",
-              .before=TRUE)
-    
-    min_elig_date <- "2020-12-08"
-    
-  } else {
-    
-    data <- data_tables[[i]] %>%
-      droplevels()
-    
-    subgroup <- unique(data$subgroup)
-    subgroup_label <- which(subgroups == subgroup)
-    
-    min_elig_date <- data_all %>%
-      filter(subgroup %in% subgroup) %>%
-      summarise(min_elig_date = min(elig_date))
-    min_elig_date <- min_elig_date$min_elig_date
-    
-  }
-  
-  # function for creating tibble of categories for each variable
-  var_tibble <- function(var) {
-    var_region <- tibble(
-      variable = var,
-      category = levels(data[[var]])
-    )
-  }
-  # tibble for specifying order of variables and categories
-  var_order <- tibble(
-    variable = variables
-  ) %>%
-    left_join(
-      bind_rows(
-        lapply(vars_ordered_levs,
-               var_tibble)),
-      by = "variable"
-    ) %>%
-    mutate(across(category, ~ if_else(is.na(.x), "yes", .x)))
-  
-  cat("---- make table 1 ----\n")
-  # make table1
-  table1 <- bind_rows(lapply(
-    variables,
-    function(x)
-      data %>% summary_var(var = x)
-  ))
-  
-  cat("---- tidy table 1 ----\n")
-  # variables under "Evidence of" heading
-  history_of_vars <- c(
-    "crd",
-    "chd", 
-    "cld", 
-    "ckd", 
-    "cns",
-    "diabetes",
-    "immunosuppressed",
-    # "asplenia",
-    "learndis", 
-    "sev_mental")
-  # tidy table1
-  table1_tidy <- var_order %>% 
-    left_join(var_labels, by = "variable") %>%
-    left_join(table1, by = c("category", "variable")) %>%
-    mutate(across(category,
-                  ~ if_else(variable %in% history_of_vars, variable_label, .x))) %>%
-    mutate(across(variable_label,
-                  ~ if_else(variable %in% history_of_vars, "Evidence of", .x))) %>%
-    mutate(across(variable_label, ~ str_replace(.x, "min_elig_date", as.character(min_elig_date)))) %>%
-    rename(Variable = variable_label, Characteristic = category, Unvaccinated = unvax) %>%
-    select(-variable) %>%
-    select(Variable, Characteristic, everything()) %>%
-    mutate(across(c(BNT162b2, ChAdOx1, Unvaccinated), 
-                  ~ if_else(is.na(.x), "- (-%)", .x))) 
-  
-  # age summary
-  age_summary <- data %>%
-    group_by(arm) %>%
-    summarise(
-      median = median(age, na.rm=TRUE),
-      iqr = IQR(age, na.rm = TRUE),
-      .groups = "keep") %>% 
-    ungroup() %>%
-    transmute(arm, value = as.character(glue("{median} ({iqr})"))) %>%
-    pivot_wider(names_from = "arm", values_from = "value") %>%
-    mutate(Variable = "Age", Characteristic = "Median (IQR)") 
-  
-  # age_missing <- data %>% 
-  #   group_by(arm) %>%
-  #   summarise(
-  #     missing = sum(is.na(age)), 
-  #     .groups = "keep") %>%
-  #   ungroup() %>%
-  #   transmute(arm, value = scales::comma(missing, accuracy = 1)) %>%
-  #   pivot_wider(names_from = "arm", values_from = "value") %>%
-  #   mutate(Variable = "Age", Characteristic = "Missing") 
-  
-  table1_tidy_n <- data %>% 
-    group_by(arm) %>% 
-    count() %>% 
-    ungroup() %>% 
-    mutate(across(n, ~ceiling_any(.x, to=7))) %>%
-    pivot_wider(names_from = arm, values_from = n) %>% 
-    mutate(Variable = "", Characteristic = "N") %>%
-    mutate(across(c(BNT162b2, ChAdOx1, unvax), 
-                  ~ scales::comma(.x, accuracy = 1))) %>%
-    bind_rows(
-      age_summary
-    ) %>%
-    rename(Unvaccinated = unvax) %>%
-    bind_rows(
-      table1_tidy
-    )
-  
-  cat("---- save table1.csv ----\n")
-  # save table1_tidy
-  readr::write_csv(table1_tidy_n,
-                   here::here("output", "report", "tables", glue("table1_{subgroup_label}_REDACTED.csv")))
-  
-  cat("---- save table1.html ----\n")
-  table1_tidy_n %>%
-    gt(
-      groupname_col="Variable",
-      rowname_col = "Characteristic"
-    ) %>%
-    tab_header(
-      title = glue("Subgroup: {subgroup}"),
-      subtitle = "Patient characteristics as of second vaccination period + 2 weeks") %>%
-    tab_style(
-      style = cell_text(weight="bold"),
-      locations = list(
-        cells_column_labels(
-          columns = everything()
-        ),
-        cells_row_groups(
-          groups = everything()
-        ))
-    ) %>%
-    gtsave(
-      filename = glue("table1_{subgroup_label}_REDACTED.html"),
-      path = here::here("output", "report", "tables")
-    )
-  
-}
-
-
-for (i in c(seq_along(data_tables))) {
-  cat(glue("---- loop {i} ----"), "\n")
-  cat("---- define obejcts ----\n")
-  variables <- c(unname(strata_vars), unname(unlist(model_varlist)))
-  variables <- variables[variables != "age"]
-  vars_ordered_levs <- c("region", "jcvi_group", "sex", "imd", "ethnicity", "bmi", "multimorb", "test_hist_n")
-  
-  # tibble for assigning tidy variable names
-  var_labels <- tibble(
-    variable = c(
-      strata_vars,
-      model_varlist$clinical, 
-      model_varlist$multimorb, 
-      model_varlist$demographic),
-    variable_label = names(c(
-      strata_vars, 
-      model_varlist$clinical, 
-      model_varlist$multimorb,
-      model_varlist$demographic))
-  )
-  
-  if (i == 0) {
-    
-    data <- bind_rows(data_tables) %>%
-      droplevels()
-    
-    subgroup <- "All subgroups"
-    subgroup_label <- 5
-    
-    variables <- c("subgroup", variables)
-    vars_ordered_levs <- c("subgroup", vars_ordered_levs)
-    
-    var_labels <- var_labels %>%
-      add_row(variable = "subgroup", variable_label = "Subgroup",
-              .before=TRUE)
-    
-    min_elig_date <- "2020-12-08"
-    
-  } else {
-    
-    data <- data_tables[[i]] %>%
-      droplevels()
-    
-    subgroup <- unique(data$subgroup)
-    subgroup_label <- which(subgroups == subgroup)
-    
-    min_elig_date <- data_all %>%
-      filter(subgroup %in% subgroup) %>%
-      summarise(min_elig_date = min(elig_date))
-    min_elig_date <- min_elig_date$min_elig_date
-    
-  }
-  
-  # function for creating tibble of categories for each variable
-  var_tibble <- function(var) {
-    var_region <- tibble(
-      variable = var,
-      category = levels(data[[var]])
-    )
-  }
-  # tibble for specifying order of variables and categories
-  var_order <- tibble(
-    variable = variables
-  ) %>%
-    left_join(
-      bind_rows(
-        lapply(vars_ordered_levs,
-               var_tibble)),
-      by = "variable"
-    ) %>%
-    mutate(across(category, ~ if_else(is.na(.x), "yes", .x)))
-  
-  cat("---- make table 1 ----\n")
-  # make table1
-  table1 <- bind_rows(lapply(
-    variables,
-    function(x)
-      data %>% summary_var(var = x)
-  ))
-  
-  cat("---- tidy table 1 ----\n")
-  # variables under "Evidence of" heading
-  history_of_vars <- c(
-    "crd",
-    "chd", 
-    "cld", 
-    "ckd", 
-    "cns",
-    "diabetes",
-    "immunosuppressed",
-    # "asplenia",
-    "learndis", 
-    "sev_mental")
-  # tidy table1
-  table1_tidy <- var_order %>% 
-    left_join(var_labels, by = "variable") %>%
-    left_join(table1, by = c("category", "variable")) %>%
-    mutate(across(category,
-                  ~ if_else(variable %in% history_of_vars, variable_label, .x))) %>%
-    mutate(across(variable_label,
-                  ~ if_else(variable %in% history_of_vars, "Evidence of", .x))) %>%
-    mutate(across(variable_label, ~ str_replace(.x, "min_elig_date", as.character(min_elig_date)))) %>%
-    rename(Variable = variable_label, Characteristic = category, Unvaccinated = unvax) %>%
-    select(-variable) %>%
-    select(Variable, Characteristic, everything()) %>%
-    mutate(across(c(BNT162b2, ChAdOx1, Unvaccinated), 
-                  ~ if_else(is.na(.x), "- (-%)", .x))) 
-  
-  # age summary
-  age_summary <- data %>%
-    group_by(arm) %>%
-    summarise(
-      median = median(age, na.rm=TRUE),
-      iqr = IQR(age, na.rm = TRUE),
-      .groups = "keep") %>% 
-    ungroup() %>%
-    transmute(arm, value = as.character(glue("{median} ({iqr})"))) %>%
-    pivot_wider(names_from = "arm", values_from = "value") %>%
-    mutate(Variable = "Age", Characteristic = "Median (IQR)") 
-  
-  # age_missing <- data %>% 
-  #   group_by(arm) %>%
-  #   summarise(
-  #     missing = sum(is.na(age)), 
-  #     .groups = "keep") %>%
-  #   ungroup() %>%
-  #   transmute(arm, value = scales::comma(missing, accuracy = 1)) %>%
-  #   pivot_wider(names_from = "arm", values_from = "value") %>%
-  #   mutate(Variable = "Age", Characteristic = "Missing") 
-  
-  table1_tidy_n <- data %>% 
-    group_by(arm) %>% 
-    count() %>% 
-    ungroup() %>% 
-    mutate(across(n, ~ceiling_any(.x, to=7))) %>%
-    pivot_wider(names_from = arm, values_from = n) %>% 
-    mutate(Variable = "", Characteristic = "N") %>%
-    mutate(across(c(BNT162b2, ChAdOx1, unvax), 
-                  ~ scales::comma(.x, accuracy = 1))) %>%
-    bind_rows(
-      age_summary
-      ) %>%
-    rename(Unvaccinated = unvax) %>%
-    bind_rows(
-      table1_tidy
-    )
-  
-  cat("---- save table1.csv ----\n")
-  # save table1_tidy
-  readr::write_csv(table1_tidy_n,
-                   here::here("output", "report", "tables", glue("table1_{subgroup_label}_REDACTED.csv")))
-  
-  cat("---- save table1.html ----\n")
-  table1_tidy_n %>%
-    gt(
-      groupname_col="Variable",
-      rowname_col = "Characteristic"
-    ) %>%
-    tab_header(
-      title = glue("Subgroup: {subgroup}"),
-      subtitle = "Patient characteristics as of second vaccination period + 2 weeks") %>%
-    tab_style(
-      style = cell_text(weight="bold"),
-      locations = list(
-        cells_column_labels(
-          columns = everything()
-        ),
-        cells_row_groups(
-          groups = everything()
-        ))
-    ) %>%
-    gtsave(
-      filename = glue("table1_{subgroup_label}_REDACTED.html"),
-      path = here::here("output", "report", "tables")
-    )
-  
-}
-
-
-
-
-
-
