@@ -476,6 +476,9 @@ study=StudyDefinition(
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
     ),
     cancer_solid_snomed_date=patients.with_these_clinical_events( 
             cancer_nonhaem_snomed,
@@ -483,6 +486,9 @@ study=StudyDefinition(
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
     ), 
     
     # haematological cancer
@@ -492,6 +498,9 @@ study=StudyDefinition(
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
     ),
     cancer_haem_snomed_date=patients.with_these_clinical_events( 
             cancer_haem_snomed,
@@ -499,6 +508,9 @@ study=StudyDefinition(
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
     ), 
 
     # unspecified cancer
@@ -508,6 +520,9 @@ study=StudyDefinition(
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
     ),
 
 )
