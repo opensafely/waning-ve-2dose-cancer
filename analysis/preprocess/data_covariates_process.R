@@ -36,7 +36,7 @@ data_arm <- bind_rows(
 data_processed <- readr::read_rds(
   here::here("output", "data", "data_processed.rds")) %>%
   select(patient_id, #subgroup,
-         jcvi_group, elig_date, region, 
+         jcvi_group, elig_date, region, ethnicity,
          dereg_date, death_date,
          any_of(unname(model_varlist$demographic)))
 
