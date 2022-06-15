@@ -133,7 +133,7 @@ clinical <- c(
 )
 
 # extra clinical variables for summary table 
-# (those used to define morbidity count)
+# (those used to define morbidity count, but not included in model)
 multimorb <-c(
   "Chronic respiratory disease" = "crd", 
   "Chronic heart disease" = "chd", 
