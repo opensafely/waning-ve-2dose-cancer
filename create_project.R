@@ -129,7 +129,8 @@ clinical <- c(
   "Morbidity count" = "multimorb",
   "Flu vaccine in previous 5 years" = "flu_vaccine",
   "Number of SARS-CoV-2 tests between 2020-05-18 and min_elig_date" = "test_hist_n",
-  "Pregnancy" = "pregnancy"
+  "Pregnancy" = "pregnancy",
+  "Prior SARS-CoV-2 infection" = "prior_infection_subgroup"
 )
 
 # extra clinical variables for summary table 
