@@ -88,7 +88,7 @@ event_counts_age <- bind_rows(lapply(
   c(TRUE, FALSE),
   function(x) 
     data_tte %>%
-    # derive cancer / nocancer * 18-69 / 70+ subgroups
+    # derive (cancer / nocancer) * (18-69 / 70+) subgroups
     mutate(
       subgroup = if_else(cancer_subgroup == "noncancer", "noncancer", "cancer")
     ) %>%

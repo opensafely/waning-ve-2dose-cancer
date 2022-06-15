@@ -34,6 +34,7 @@ fs::dir_create(here::here("output", "tte", "data"))
 ################################################################################
 
 data <- data_all %>%
+  # reshape such that each line corresponds to a comparison period
   pivot_longer(
     cols = matches("\\w+_\\d_date"),
     names_to = c(".value", "k"),
@@ -42,6 +43,7 @@ data <- data_all %>%
   rename_with(~str_c(.x, "_date"), .cols = all_of(c("start", "end", "anytest"))) %>%
   mutate(across(k, as.integer)) %>%
   # keep only odd unvax for odd k, equiv. for even
+  # see original waning protocol for rational for splitting the unvaccinated group
   filter(
     is.na(split) |
       ((k %% 2) == 0 & split == "even") |
@@ -57,12 +59,13 @@ derive_data_tte <- function(
   outcome
   ) {
   
-  # remove comparisons for which outcome has occurred before the patient's first comparison
-  # (if outcome is anytest, only exclude if previous postest)
+  # remove periods for which outcome has occurred before the start date
+  # e.g. 
+  # if outcome is postest and postest occurs in period 3, remove periods 4,5,6;
+  # if outcome is anytest and anytest occurs in period 3, keep periods 4,5,6
+  # BUT if outcome is anytest and postest occurs in period 3, remove periods 4,5,6
   if (outcome == "anytest") {
     outcome_exclude <- "postest"
-  } else if (outcome == "covidemergency") {
-    outcome_exclude <- "covidadmitted" # to ensure the same sample for the hospitalisations comparison
   } else {
     outcome_exclude <- outcome
   }
@@ -110,28 +113,10 @@ derive_data_tte <- function(
     select(patient_id, arm, k, tstart = start, tstop = tte, status,
            ends_with("subgroup"), starts_with("exclude")) %>%
     arrange(patient_id, k) %>%
-    mutate(
-      
-      tmp_outcome = outcome#,
-      
-      # prior_infection = case_when(
-      #   !prior_infection_subgroup & 
-      #     !(tmp_outcome %in% c("postest", "anytest") & exclude_postest) & 
-      #     !(tmp_outcome == "covidadmitted" & exclude_covidadmitted) ~ FALSE,
-      #   TRUE ~ TRUE
-      # ),
-      # 
-      # main_subgroup = case_when(
-      #   cancer_subgroup == "noncancer" ~ "noncancer",
-      #   TRUE ~ "cancer"
-      # ),
-      # 
-      # type_subgroup = case_when(
-      #   str_detect(cancer_subgroup, "haem|solid") ~ str_remove(cancer_subgroup, "cancer_"),
-      #   TRUE ~ NA_character_
-      # )
-      
-    ) %>%
+    mutate(tmp_outcome = outcome) %>%
+    # update prior_infection_subgroup for specific outcome variables
+    # exclude_postest = postest in [start_date - 27, start_date]
+    # exclude_covidadmitted = covidadmitted in [start_date - 27, start_date]
     mutate(across(prior_infection_subgroup,
                   ~ case_when(
                     !.x & 
@@ -140,15 +125,6 @@ derive_data_tte <- function(
                     TRUE ~ TRUE
                   ))) %>%
     select(-tmp_outcome, -starts_with("exclude_")) %>%
-    # select(-tmp_outcome, -ends_with("_subgroup"), -starts_with("exclude_")) %>%
-    # pivot_longer(
-    #   cols = starts_with("tmp"),
-    #   values_drop_na = TRUE
-    #   ) %>%
-    # mutate(across(name, ~str_remove(.x, "tmp_"))) %>%
-    # rename(analysis = name, subgroup = value) %>%
-    # mutate(across(analysis, factor, levels = c("main", "age", "type"))) %>%
-    # mutate(across(subgroup, factor, levels = c("noncancer", "cancer", "18-69", "70+", "haem", "solid"))) %>%
     mutate(across(arm, factor, levels = c("BNT162b2", "ChAdOx1", "unvax"))) %>%
     mutate(across(k, factor, levels = 1:K)) 
   

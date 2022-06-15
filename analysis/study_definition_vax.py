@@ -175,6 +175,8 @@ study=StudyDefinition(
         },
     ),
 
+    # region, IMD and medically housebound defined on or before elig_date + 42 days,
+    # as this is the time-point at which they are used in eligibility criteria
     # region - NHS England 9 regions
     region=patients.registered_practice_as_of(
         "elig_date + 42 days",
@@ -223,7 +225,8 @@ study=StudyDefinition(
         ),
     ),
     
-    # end of life
+    # End of life care defined on or before elig_date +84 days, as this will be defined
+    # at the start of the SVP, and this is the latest date at which the SVP can start.
     endoflife_date=patients.with_these_clinical_events(
         eol_codes,
         returning="date",
