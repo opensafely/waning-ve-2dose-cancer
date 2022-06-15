@@ -163,33 +163,3 @@ readr::write_rds(
   here::here("output", "data", "data_all.rds"),
   compress = "gz"
 )
-
-# ################################################################################
-# # store min and max fu dates for each subgroup
-# 
-# # create output directory
-# fs::dir_create(here::here("output", "lib"))
-# 
-# # redaction functions
-# source(here::here("analysis", "functions", "redaction_functions.R"))
-# 
-# data_min_max_fu <- data_all %>%
-#   group_by(subgroup) %>%
-#   summarise(
-#     min_fu_date = min(start_1_date),
-#     max_fu_date = max(end_6_date),
-#     # round total to nereast 7 for disclosure control
-#     n = ceiling_any(n(), to=7),
-#     .groups = "keep"
-#   ) %>% 
-#   ungroup() %>%
-#   mutate(across(max_fu_date,
-#                 ~ pmin(as.Date(study_parameters$end_date), .x)))
-# 
-# 
-# # data for release
-# readr::write_csv(
-#   data_min_max_fu,
-#   here::here("output", "lib", "data_min_max_fu.csv")
-# )
-# 
