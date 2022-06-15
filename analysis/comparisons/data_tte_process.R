@@ -1,7 +1,7 @@
 ################################################################################
 
 # This script:
-# creates time-to-event data for the given outcome
+# creates time-to-event data for all outcomes
 
 ################################################################################
 
