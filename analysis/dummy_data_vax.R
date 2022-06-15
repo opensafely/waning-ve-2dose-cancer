@@ -16,15 +16,10 @@ set.seed(5476)
 # date vars 
 # set these to have occured since start of pandemic
 date_vars_recent <- c(
-  # "positive_test_0_date", 
-  # "primary_care_covid_case_0_date", 
-  # "covidadmitted_0_date",
-  # "covidemergency_0_date",
   "death_date",
   "longres_date",
   "endoflife_date", 
   "midazolam_date",
-  # "coviddeath_date", 
   "dereg_date")
 
 jcvi_group_patterns <- readr::read_csv(here::here("analysis", "lib", "jcvi_groups.csv")) %>%
@@ -163,16 +158,6 @@ dummy_data_covs <- dummy_data_vax %>%
           latest="2021-12-31",
           keep_vars = FALSE
         ))) %>%
-  # add death_date if coviddeath_date
-  # mutate(across(death_date, 
-  #               ~if_else(
-  #                 !is.na(coviddeath_date), 
-  #                 coviddeath_date,
-  #                 .x))) %>%
-  # cancer_dates(name = "cancer_nonhaem_icd10_date") %>%
-  # cancer_dates(name = "cancer_nonhaem_snomed_date") %>%
-  # cancer_dates(name = "cancer_haem_icd10_date") %>%
-  # cancer_dates(name = "cancer_haem_snomed_date") %>%
   mutate(across(contains("_date"), as.POSIXct)) %>%
   mutate(across(ends_with("date"), as.POSIXct)) %>%
   mutate(across(c(ethnicity_6, ethnicity_6_sus, jcvi_group, region, sex),
