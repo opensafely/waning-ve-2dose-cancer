@@ -308,8 +308,8 @@ apply_model_fun <- function(
         model_glance_rds = glue("output/models_cox/data/modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.rds")
       ),
       moderately_sensitive = list(
-        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.txt"),
-        model_glance_txt = glue("output/models_cox/temp/modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_*.txt")
+        model_tidy_txt = glue("output/models_cox/temp/modelcox_tidy_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}.txt"),
+        model_glance_txt = glue("output/models_cox/temp/modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}.txt")
       )
     )
     
@@ -566,7 +566,7 @@ actions_list <- splice(
   
   comment(" "),
   
-  comment("Main analysis for comparison with Lee et al."),
+  comment("Main analysis and cancer type for comparison with Lee et al."),
   
   splice(
     unlist(
@@ -576,7 +576,7 @@ actions_list <- splice(
           splice(
             unlist(
               lapply(
-                c(1,2),
+                c(1,2,3,4), #subgroup indices
                 function(y)
                   splice(
                     unlist(
@@ -600,87 +600,39 @@ actions_list <- splice(
       ),
       recursive = FALSE
     )
-  )#,
+  ),
   
-  # splice(
-  #   # over subgroups
-  #   unlist(lapply(
-  #     comparisons,
-  # 
-  #     function(x) {
-  #       if (!(x %in% "BNT162b2")) {
-  #         subgroup_indexs <- subgroup_indexs[subgroups != "18-39 years"]
-  #       }
-  #       unlist(lapply(
-  #         unname(c(
-  #           unlist(lapply(
-  #             subgroup_indexs, function(sub) 
-  #               sapply(c("", "_Female", "_Male"), 
-  #                      function(sex) glue("{sub}{sex}")
-  #               ))),
-  #           sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
-  #         )),
-  #         function(y)
-  #           splice(
-  #           unlist(lapply(
-  #             unname(outcomes_model),
-  # 
-  #             function(z)
-  #             apply_model_fun(
-  #               comparison = x,
-  #               subgroup_index = y,
-  #               outcome = z)
-  #           ),
-  #           recursive = FALSE)
-  #           )
-  #         
-  #       ),
-  #       recursive = FALSE)
-  #     }
-  #   ), recursive = FALSE)
-  # ),
-  # 
-  # comment("combine all estimates for release"),
-  # action(
-  #   name = glue("combine_estimates"),
-  #   run = "r:latest analysis/comparisons/combine_estimates.R",
-  #   needs = splice(
-  #     lapply(
-  #       comparisons[comparisons != "both"], 
-  #       function(x) glue("data_tte_process_{x}")
-  #       ),
-  #     as.list(unlist(lapply(
-  #       comparisons,
-  #       function(x)
-  #       {
-  #         if (x %in% c("ChAdOx1", "both")) {
-  #           ys <- subgroup_indexs[subgroups != "18-39 years"]
-  #         } else {
-  #           ys <- subgroup_indexs
-  #         }
-  #         unlist(lapply(
-  #           unname(c(
-  #             unlist(lapply(
-  #               ys, function(sub) 
-  #                 sapply(c("", "_Female", "_Male"), 
-  #                        function(sex) glue("{sub}{sex}")
-  #                 ))),
-  #             sapply(c("65", "75"), function(age_band) glue("1_{age_band}"))
-  #           )),
-  #           function(y)
-  #             unlist(lapply(
-  #               unname(outcomes_model),
-  #               function(z)
-  #                 glue("apply_model_cox_{x}_{y}_{z}")
-  #             ), recursive = FALSE)
-  #         ), recursive = FALSE)
-  #       }
-  #     ), recursive = FALSE))),
-  #   moderately_sensitive = list(
-  #     event_counts_all = glue("output/release_objects/event_counts*.csv"),
-  #     estimates_all = glue("output/release_objects/estimates*.csv")
-  #   )
-  # ),
+  comment("combine all estimates for release"),
+  action(
+    name = glue("combine_estimates"),
+    run = "r:latest analysis/comparisons/combine_estimates.R",
+    needs = splice(
+      unlist(
+        lapply(
+          comparisons,
+          function(x)
+            splice(
+              unlist(
+                lapply(
+                  c(1,2,3,4), #subgroup indices
+                  function(y)
+                    lapply(
+                      unname(outcomes),
+                      function(z)
+                        glue("apply_model_cox_{x}_{y}_TRUE_{z}")
+                    )
+                ),
+                recursive = FALSE
+              )
+            )
+        ),
+        recursive = FALSE
+      )
+    ),
+    moderately_sensitive = list(
+      estimates_all = glue("output/release_objects/estimates*.csv")
+    )
+  )#,
   
   # comment("####################################",
   #         "plot to check estimates", 
