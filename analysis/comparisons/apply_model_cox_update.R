@@ -16,14 +16,16 @@ args <- commandArgs(trailingOnly=TRUE)
 
 if(length(args)==0){
   # use for interactive testing
-  comparison <- "BNT162b2"
-  subgroup_label <- "2"
-  outcome <- "covidadmitted"
+  comparison <- "both"
+  subgroup_index <- 1L
+  include_prior_infection <- TRUE
+  outcome <- "anytest"
   
 } else{
   comparison <- as.character(args[[1]])
-  subgroup_label <- as.character(args[[2]])
-  outcome <- as.character(args[[3]])
+  subgroup_index <- as.integer(args[[2]])
+  include_prior_infection <- as.logical(args[[3]])
+  outcome <- as.character(args[[4]])
 }
 
 ################################################################################
@@ -35,7 +37,7 @@ fs::dir_create(here::here("output", "models_cox", "temp"))
 # read subgroups
 subgroups <- readr::read_rds(
   here::here("analysis", "lib", "subgroups.rds"))
-subgroup <- subgroups[as.integer(str_extract(subgroup_label, "^\\d"))]
+subgroup <- subgroups[as.integer(str_extract(subgroup_index, "^\\d"))]
 
 # read study parameters
 study_parameters <- readr::read_rds(
@@ -50,13 +52,13 @@ for (kk in 1:K) {
   
   # read data
   model_input <-  readr::read_rds(
-    here::here("output", "preflight", "data", glue("model_input_{comparison}_{subgroup_label}_{outcome}_{kk}.rds"))
+    here::here("output", "preflight", "data", glue("model_input_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.rds"))
   )
   cat(glue("k={kk}: is.null(model_input):"), "\n")
   print(is.null(model_input))
   
   # specify filename_suffix for saving models
-  filename_suffix <- glue("{comparison}_{subgroup_label}_{outcome}_{kk}")
+  filename_suffix <- glue("{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}")
   
   
   if (is.null(model_input)) {
@@ -93,12 +95,14 @@ for (kk in 1:K) {
     
     model_names = c(
       "1" = "Unadjusted",
-      "2" = "Adjusting for demographics + clinical"
+      "2" = "Adjusted for age, sex and IMD",
+      "3" = "Maximally adjusted"
     )
     
     formula_cox_1 <- formulas$unadjusted
-    formula_cox_2 <- formulas$unadjusted %>% 
-      update(formulas$demographic) %>% 
+    formula_cox_2 <- formulas$unadjusted %>%
+      update(formulas$demographic)
+    formula_cox_3 <- formula_cox_1 %>% 
       update(formulas$clinical)
     
     ################################################################################
@@ -120,11 +124,11 @@ for (kk in 1:K) {
     
     readr::write_rds(
       coxmods[[1]],
-      here::here("output", "models_cox", "data", glue("model1_{filename_suffix}.rds")),
+      here::here("output", "models_cox", "data", glue("model_object_1_{filename_suffix}.rds")),
       compress = "gz"
     )
     
-    cat(glue("...... fitting adjusted model ......"), "\n")
+    cat(glue("...... adjusting for demographic vars ......"), "\n")
     coxmods[[2]] <- try(coxph(
       formula = formula_cox_2,
       data = data_cox,
@@ -136,7 +140,23 @@ for (kk in 1:K) {
     
     readr::write_rds(
       coxmods[[2]],
-      here::here("output", "models_cox", "data", glue("model2_{filename_suffix}.rds")),
+      here::here("output", "models_cox", "data", glue("model_object_2_{filename_suffix}.rds")),
+      compress = "gz"
+    )
+    
+    cat(glue("...... adjusting for demographic and clinical vars ......"), "\n")
+    coxmods[[3]] <- try(coxph(
+      formula = formula_cox_3,
+      data = data_cox,
+      # robust = TRUE,
+      # id = patient_id,
+      cluster = patient_id,
+      na.action = "na.fail",
+      control = opt_control))
+    
+    readr::write_rds(
+      coxmods[[3]],
+      here::here("output", "models_cox", "data", glue("model_object_3_{filename_suffix}.rds")),
       compress = "gz"
     )
     
@@ -214,7 +234,7 @@ if (!is_empty(model_glance)) {
 }
 capture.output(
   model_glance %>% kableExtra::kable(format = "pipe"),
-  file = here::here("output", "models_cox", "temp", glue("modelcox_glance_{comparison}_{subgroup_label}_{outcome}.txt")),
+  file = here::here("output", "models_cox", "temp", glue("modelcox_glance_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}.txt")),
   append = FALSE
 )
 
@@ -225,6 +245,6 @@ if (!is_empty(model_tidy)) {
 }
 capture.output(
   model_tidy %>% kableExtra::kable(format = "pipe"),
-  file = here::here("output", "models_cox", "temp", glue("modelcox_tidy_{comparison}_{subgroup_label}_{outcome}.txt")),
+  file = here::here("output", "models_cox", "temp", glue("modelcox_tidy_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}.txt")),
   append = FALSE
 )

@@ -163,3 +163,23 @@ var_date_recurrent <- function(
   
   return(out %>% select(-missing))
 }
+
+# cancer dates
+# add date of cancer diagnosis for 10% of patients
+cancer_dates <- function(.data, name) {
+  .data %>%
+    mutate(
+      !!sym(name) := if_else(
+        # randomly sample 10% of patients
+        sample(x = c(FALSE, TRUE), size = nrow(.), replace=TRUE, prob = c(0.9,0.1)),
+        # assign cancer date
+        sample(
+          x = seq(as.Date("2018-01-01"), as.Date("2022-06-01"), by = 1),
+          size = nrow(.),
+          replace = TRUE
+        ),
+        # missing for other 90%
+        as.Date(NA_character_)
+      )
+    )
+}

@@ -35,10 +35,9 @@ data_arm <- bind_rows(
 # vars from data_processed
 data_processed <- readr::read_rds(
   here::here("output", "data", "data_processed.rds")) %>%
-  select(patient_id, subgroup,
-         jcvi_group, elig_date, region, 
+  select(patient_id, #subgroup,
+         jcvi_group, elig_date, region, ethnicity,
          dereg_date, death_date,
-         starts_with(unname(outcomes)),
          any_of(unname(model_varlist$demographic)))
 
 # vax data
@@ -57,7 +56,8 @@ data_all <- data_arm %>%
     data_covariates %>%
       select(patient_id, 
              matches(c("start_\\d_date", "end_\\d_date")),
-             starts_with("anytest"), asplenia,
+             starts_with("cancer"),
+             starts_with(c(unname(outcomes), "primary_care_covid")),
              any_of(unname(unlist(model_varlist)))) %>%
       mutate(across(contains("_date"), 
                     ~ floor_date(
@@ -78,8 +78,6 @@ data_all <- data_arm %>%
     
     pregnancy = pregnancy & (sex == "Female") & (age < 50),
     
-    immunosuppressed = immunosuppressed | asplenia,
-    
     multimorb =
       # as.integer(bmi %in% "Obese III (40+)") +
       as.integer(chd)  +
@@ -94,7 +92,13 @@ data_all <- data_arm %>%
       multimorb,
       breaks = c(0, 1, 2, Inf),
       labels=c("0", "1", "2+"),
-      right=FALSE)
+      right=FALSE),
+    
+    noncoviddeath_date = if_else(
+      !is.na(death_date) & is.na(coviddeath_date),
+      death_date,
+      as.Date(NA_character_)
+      )
     
   ) %>%
   mutate(across(test_hist_n,
@@ -109,40 +113,53 @@ data_all <- data_arm %>%
     arm %in% "unvax",
     covid_vax_1_date,
     covid_vax_3_date)) %>%
-  select(-covid_vax_1_date, -covid_vax_3_date, -asplenia)
+  select(-covid_vax_1_date, -covid_vax_3_date) %>%
+  mutate(
+    
+    # Create flags for each subgroup analysis:
+    # positive test, primary care, or hospitalisation on or before start_1_date - 28 days
+    prior_infection_subgroup = if_else(
+      !is.na(postest_0_date) | !is.na(primary_care_covid_case_0_date) | !is.na(covidadmitted_0_date),
+      TRUE, FALSE
+    ),
+    
+    # those to exclude when positive test is outcome
+    exclude_postest = if_else(
+      !is.na(postest_1_date) | !is.na(primary_care_covid_case_1_date) | !is.na(covidadmitted_1_date),
+      TRUE, FALSE
+    ),
+    
+    # those to exclude when hospitalisation outcome
+    exclude_covidadmitted = if_else(
+      !is.na(covidadmitted_1_date),
+      TRUE, FALSE
+    ),
+    
+    # cancer subgroups
+    cancer_subgroup = case_when(
+      !is.na(cancer_haem_icd10_date) | !is.na(cancer_haem_snomed_date) ~ "cancer_haem",
+      !is.na(cancer_solid_icd10_date) | !is.na(cancer_solid_snomed_date) ~ "cancer_solid",
+      !is.na(cancer_unspec_icd10_date) ~ "cancer_unspec",
+      TRUE ~ "noncancer"
+    ),
+    
+    # age subgroups
+    age_subgroup = factor(
+      if_else(age < 70, "18-69", "70+"),
+      levels = c("18-69", "70+")
+    )
+  ) %>%
+  rename(
+    postest_date = postest_2_date,
+    covidadmitted_date = covidadmitted_2_date
+    ) %>%
+  select(
+    -matches(c("cancer_.+_date", "postest_\\d_date", "covidadmitted_\\d_date", "primary_care_covid_case_\\d_date")),
+    -any_of(unname(model_varlist$multimorb))
+  )
 
 readr::write_rds(
   data_all,
   here::here("output", "data", "data_all.rds"),
   compress = "gz"
 )
-
-################################################################################
-# store min and max fu dates for each subgroup
-
-# create output directory
-fs::dir_create(here::here("output", "lib"))
-
-# redaction functions
-source(here::here("analysis", "functions", "redaction_functions.R"))
-
-data_min_max_fu <- data_all %>%
-  group_by(subgroup) %>%
-  summarise(
-    min_fu_date = min(start_1_date),
-    max_fu_date = max(end_6_date),
-    # round total to nereast 7 for disclosure control
-    n = ceiling_any(n(), to=7),
-    .groups = "keep"
-  ) %>% 
-  ungroup() %>%
-  mutate(across(max_fu_date,
-                ~ pmin(as.Date(study_parameters$end_date), .x)))
-
-
-# data for release
-readr::write_csv(
-  data_min_max_fu,
-  here::here("output", "lib", "data_min_max_fu.csv")
-)
-

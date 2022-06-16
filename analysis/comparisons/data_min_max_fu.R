@@ -28,18 +28,15 @@ source(here::here("analysis", "functions", "redaction_functions.R"))
 
 ################################################################################
 data_min_max_fu <- data_all %>%
-  group_by(subgroup) %>%
+  group_by(age_subgroup) %>%
   summarise(
     min_fu_date = min(start_1_date),
     max_fu_date = max(end_6_date),
-    # round total to nereast 7 for disclosure control
-    n = ceiling_any(n(), to=7),
     .groups = "keep"
   ) %>% 
   ungroup() %>%
   mutate(across(max_fu_date,
                 ~ pmin(as.Date(study_parameters$end_date), .x)))
-
 
 # data for release
 readr::write_csv(

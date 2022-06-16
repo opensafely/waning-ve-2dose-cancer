@@ -43,7 +43,7 @@ eligibility_count <- eligibility_count %>%
   add_row(
     description = "Samples with age_2 < 18 removed",
     n =  n_distinct(data_eligible_a$patient_id),
-    stage = "a-in"
+    stage = "a-in" # this is part of inclusion criteria as JCVI groups not defined for under 18s (16 CV)
   )
 
 # remove if aged over 120 (to avoid probable errors)
@@ -68,55 +68,6 @@ data_eligible_a <- data_eligible_a %>%
 eligibility_count <- eligibility_count %>%
   add_row(
     description = "Samples with missing ethnicity, sex, imd, region removed.",
-    n =  n_distinct(data_eligible_a$patient_id),
-    stage = "a-ex"
-  )
-
-# remove if evidence of covid infection on or before elig_date + 42 days
-# COVID admission
-data_eligible_a <- data_eligible_a %>%
-  filter(
-    ! (
-      !is.na(covid_any_date) &
-        (covid_any_date <= elig_date + days(42)) &
-        covid_event %in% "covidadmitted"
-    ))
-
-eligibility_count <- eligibility_count %>%
-  add_row(
-    description = "Samples with prior COVID admission removed.",
-    n =  n_distinct(data_eligible_a$patient_id),
-    stage = "a-ex"
-  )
-
-# positive COVID test
-data_eligible_a <- data_eligible_a %>%
-  filter(
-    ! (
-      !is.na(covid_any_date) &
-        (covid_any_date <= elig_date + days(42)) &
-        covid_event %in% "postest"
-    ))
-
-eligibility_count <- eligibility_count %>%
-  add_row(
-    description = "Samples with prior positive COVID test removed.",
-    n =  n_distinct(data_eligible_a$patient_id),
-    stage = "a-ex"
-  )
-
-# probable COVID 
-data_eligible_a <- data_eligible_a %>%
-  filter(
-    ! (
-      !is.na(covid_any_date) &
-        (covid_any_date <= elig_date + days(42)) &
-        covid_event %in% "probable"
-    ))
-
-eligibility_count <- eligibility_count %>%
-  add_row(
-    description = "Samples with prior probable COVID removed.",
     n =  n_distinct(data_eligible_a$patient_id),
     stage = "a-ex"
   )
@@ -184,7 +135,7 @@ eligibility_count <- eligibility_count %>%
 data_eligible_b <- data_eligible_b %>%
   filter(
     # first dose received before eligibility date
-    covid_vax_1_date > elig_date
+    covid_vax_1_date >= elig_date
   )
 eligibility_count <- eligibility_count %>%
   add_row(

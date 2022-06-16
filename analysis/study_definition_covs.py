@@ -74,13 +74,6 @@ study=StudyDefinition(
         returning_type='date',
         date_format='YYYY-MM-DD'
         ),
-    # min elig date within subgroup
-    min_elig_date=patients.with_value_from_file(
-        f_path='output/data/data_eligible_e.csv', 
-        returning='min_elig_date', 
-        returning_type='date',
-        date_format='YYYY-MM-DD'
-        ),
     # comparison start and end dates
     **type_X_date("start", K),
     **type_X_date("end", K),
@@ -99,7 +92,7 @@ study=StudyDefinition(
     test_hist_n=patients.with_test_result_in_sgss(
         pathogen="SARS-CoV-2",
         test_result="any",
-        between=["2020-05-18", "min_elig_date - 1 day"], # day before 1st vaccine eligibility date
+        between=["2020-05-18", start_date], # day of 1st vaccine eligibility date
         restrict_to_earliest_specimen_date=False,
         returning="number_of_matches_in_period",
         return_expectations={"int" : {"distribution": "poisson", "mean": 2}, "incidence" : 0.6}
@@ -255,7 +248,7 @@ study=StudyDefinition(
 
     # Immunosuppression
     immunosuppressed=patients.satisfying(
-    "immrx OR immdx",
+    "immrx OR immdx OR asplenia",
     # Immunosuppression diagnosis codes
     immdx=patients.with_these_clinical_events(
         immdx_primis,
@@ -269,14 +262,13 @@ study=StudyDefinition(
         returning="binary_flag",
         between=["svp_start_date - 180 days", "svp_start_date - 1 day"],
         ),
-    ),
-
     # Asplenia or Dysfunction of the Spleen codes
     asplenia=patients.with_these_clinical_events(
         spln_primis,
         returning="binary_flag",
         on_or_before="svp_start_date - 1 day",
         return_expectations={"incidence": 0.02},
+      ),
     ),
 
     # Learning Disability
@@ -339,7 +331,198 @@ study=StudyDefinition(
         ),
     ),
 
+    ##############
+    ### EVENTS ###
+    ##############
+    ## positive covid test
+    # latest on or before before start_1_date - 28 days
+    postest_0_date=patients.with_test_result_in_sgss(
+        pathogen="SARS-CoV-2",
+        test_result="positive",
+        returning="date",
+        date_format="YYYY-MM-DD",
+        on_or_before="start_1_date - 28 days",
+        find_last_match_in_period=True,
+        restrict_to_earliest_specimen_date=False,
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01
+        },
+    ),
+    # latest between [start_1_date - 27 days, start_1_date]
+    postest_1_date=patients.with_test_result_in_sgss(
+        pathogen="SARS-CoV-2",
+        test_result="positive",
+        returning="date",
+        date_format="YYYY-MM-DD",
+        between=["start_1_date - 27 days", "start_1_date"],
+        find_last_match_in_period=True,
+        restrict_to_earliest_specimen_date=False,
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01
+        },
+    ),
+    # earliest after start_1_date
+    postest_2_date=patients.with_test_result_in_sgss(
+        pathogen="SARS-CoV-2",
+        test_result="positive",
+        returning="date",
+        date_format="YYYY-MM-DD",
+        on_or_after="start_1_date + 1 days",
+        find_first_match_in_period=True,
+        restrict_to_earliest_specimen_date=False,
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01
+        },
+    ),
+
+    ## probable covid case identified in primary care
+    # latest before start_1_date - 28 days
+    primary_care_covid_case_0_date=patients.with_these_clinical_events(
+        covid_primary_care_probable_combined,
+        returning="date",
+        date_format="YYYY-MM-DD",
+        on_or_before="start_1_date - 28 days",
+        find_last_match_in_period=True,
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01
+        },
+    ),
+    # latest between [start_1_date - 27 days, start_1_date]
+    primary_care_covid_case_1_date=patients.with_these_clinical_events(
+        covid_primary_care_probable_combined,
+        returning="date",
+        date_format="YYYY-MM-DD",
+        between=["start_1_date - 27 days", "start_1_date"],
+        find_last_match_in_period=True,
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01
+        },
+    ),
+    
+    # covid hospitalisation:
+    # latest before start_1_date - 28 days
+    covidadmitted_0_date=patients.admitted_to_hospital(
+        returning="date_admitted",
+        with_these_diagnoses=covid_codes,
+        on_or_before="start_1_date - 28 days",
+        find_last_match_in_period=True,
+        date_format="YYYY-MM-DD",
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01,
+        },
+    ),
+    # latest between [start_1_date - 27 days, start_1_date]
+    covidadmitted_1_date=patients.admitted_to_hospital(
+        returning="date_admitted",
+        with_these_diagnoses=covid_codes,
+        between=["start_1_date - 27 days", "start_1_date"],
+        find_last_match_in_period=True,
+        date_format="YYYY-MM-DD",
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01,
+        },
+    ),
+    # earliest after start_1_date
+    covidadmitted_2_date=patients.admitted_to_hospital(
+        returning="date_admitted",
+        with_these_diagnoses=covid_codes,
+        on_or_after="start_1_date + 1 days",
+        find_first_match_in_period=True,
+        date_format="YYYY-MM-DD",
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "exponential_increase",
+            "incidence": 0.01,
+        },
+    ),
+    
+    # covid death
+    coviddeath_date=patients.with_these_codes_on_death_certificate(
+        covid_codes,
+        returning="date_of_death",
+        date_format="YYYY-MM-DD",
+        return_expectations={
+            "date": {"earliest": start_date, "latest": end_date},
+            "rate": "uniform",
+            "incidence": 0.02
+        },
+    ),
+
     # first occurence of any covid test in each comparison period
     **anytest_X_date(K),
+
+    ###################
+    ### CANCER FLAG ###
+    ###################
+
+    # non-haematological cancer
+    cancer_solid_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_nonhaem_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
+    ),
+    cancer_solid_snomed_date=patients.with_these_clinical_events( 
+            cancer_nonhaem_snomed,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date",
+            date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
+    ), 
+    
+    # haematological cancer
+    cancer_haem_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_haem_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
+    ),
+    cancer_haem_snomed_date=patients.with_these_clinical_events( 
+            cancer_haem_snomed,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date",
+            date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
+    ), 
+
+    # unspecified cancer
+    cancer_unspec_icd10_date=patients.admitted_to_hospital(
+            with_these_diagnoses=cancer_unspec_icd10,
+            on_or_after="2018-01-01",
+            find_first_match_in_period=True,
+            returning="date_admitted",
+            date_format="YYYY-MM-DD",
+            return_expectations={
+            "incidence": 0.05
+        },
+    ),
 
 )

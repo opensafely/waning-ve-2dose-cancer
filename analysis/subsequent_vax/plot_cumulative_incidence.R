@@ -8,17 +8,6 @@ library(lubridate)
 study_parameters <- readr::read_rds(
   here::here("analysis", "lib", "study_parameters.rds"))
 
-# read subgroups
-subgroups <- readr::read_rds(
-  here::here("analysis", "lib", "subgroups.rds"))
-subgroup_labels <- seq_along(subgroups)
-subgroups_long <- if_else(
-  subgroups %in% subgroups[c(3,4)],
-  as.character(glue("{subgroups}*")),
-  subgroups
-)
-subgroups_long_wrap <- str_wrap(subgroups_long, width = 25)
-
 ################################################################################
 
 # if running locally read extracted data:
@@ -54,8 +43,11 @@ if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
   # read data
   data_all <- readr::read_rds(
     here::here("output", "data", "data_all.rds")) %>%
-    select(patient_id, subgroup, arm, start_1_date, end_6_date, subsequent_vax_date, dereg_date, death_date)
-  
+    select(patient_id, arm, start_1_date, end_6_date, 
+           cancer_subgroup, age_subgroup,
+           subsequent_vax_date, dereg_date, death_date) %>%
+    mutate(subgroup = if_else(cancer_subgroup == "noncancer", "noncancer", "cancer")) %>%
+    mutate(across(subgroup, ~str_c(.x, "; ", age_subgroup, " years")))
   
   image_path <- here::here("output", "subsequent_vax", "images")
   
@@ -65,10 +57,7 @@ if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
   }
   
   data_tte <- data_all %>%
-    mutate(across(subgroup,
-                  factor,
-                  levels = subgroups,
-                  labels = subgroups_long_wrap)) %>%
+    mutate(across(subgroup, factor)) %>%
     mutate(
       # start date of comparison 1 
       start_fu_date = start_1_date,
@@ -120,6 +109,7 @@ if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
     mutate(across(starts_with("c."), round, digits = 5)) %>%
     select(subgroup, arm, time, n.risk, n.event, n.censor, c.inc) 
   
+  # output csv to extract and plot outside of level 4
   readr::write_csv(
     survtable_redacted,
     here::here("output", "subsequent_vax", "tables", "survtable_redacted.csv"))

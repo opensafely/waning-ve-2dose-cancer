@@ -31,6 +31,37 @@ ratio_regions = { regions['region'][i] : float(regions['ratio'][i]) for i in reg
 import numpy as np
 np.random.seed(study_parameters["seed"])
 
+# Will's function for extracting vaccination dates
+def vaccination_date_X(name, index_date, n, product_name_matches=None, target_disease_matches=None):
+  # vaccination date, given product_name
+  def var_signature(
+    name,
+    on_or_after,
+    product_name_matches,
+    target_disease_matches
+  ):
+    return {
+      name: patients.with_tpp_vaccination_record(
+        product_name_matches=product_name_matches,
+        target_disease_matches=target_disease_matches,
+        on_or_after=on_or_after,
+        find_first_match_in_period=True,
+        returning="date",
+        date_format="YYYY-MM-DD"
+      ),
+    }
+    
+  variables = var_signature(f"{name}_1_date", index_date, product_name_matches, target_disease_matches)
+  for i in range(2, n+1):
+    variables.update(var_signature(
+      f"{name}_{i}_date", 
+      f"{name}_{i-1}_date + 1 days",
+      # pick up subsequent vaccines occurring one day or later -- people with unrealistic dosing intervals are later excluded
+      product_name_matches,
+      target_disease_matches
+    ))
+  return variables
+
 study=StudyDefinition(
 
     default_expectations={
@@ -68,140 +99,40 @@ study=StudyDefinition(
     ### COVID VACCINES ###
     ######################
 
-    # Pfizer BioNTech - first record of a pfizer vaccine 
-    # NB *** may be patient's first COVID vaccine dose or their second if mixed types are given ***
-    covid_vax_pfizer_1_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Comirnaty 30micrograms/0.3ml dose conc for susp for inj MDV (Pfizer)",
-        on_or_after=start_date,  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-         return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ), 
-    covid_vax_pfizer_2_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Comirnaty 30micrograms/0.3ml dose conc for susp for inj MDV (Pfizer)",
-        on_or_after="covid_vax_pfizer_1_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    covid_vax_pfizer_3_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Comirnaty 30micrograms/0.3ml dose conc for susp for inj MDV (Pfizer)",
-         on_or_after="covid_vax_pfizer_2_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-         return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    
-    ## Oxford AZ - first record of an Oxford AZ vaccine 
-    # NB *** may be patient's first COVID vaccine dose or their second if mixed types are given ***
-    covid_vax_az_1_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 Vac AstraZeneca (ChAdOx1 S recomb) 5x10000000000 viral particles/0.5ml dose sol for inj MDV",
-        on_or_after=start_date,
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    covid_vax_az_2_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 Vac AstraZeneca (ChAdOx1 S recomb) 5x10000000000 viral particles/0.5ml dose sol for inj MDV",
-        on_or_after="covid_vax_az_1_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    covid_vax_az_3_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 Vac AstraZeneca (ChAdOx1 S recomb) 5x10000000000 viral particles/0.5ml dose sol for inj MDV",
-        on_or_after="covid_vax_az_2_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-         return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    
-    ## Moderna - first record of moderna vaccine
-    ## NB *** may be patient's first COVID vaccine dose or their second if mixed types are given ***
-    covid_vax_moderna_1_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Spikevax (nucleoside modified) 0.1mg/0.5mL dose disp for inj MDV (Moderna)",
-        on_or_after=start_date,
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-         return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),            
-    covid_vax_moderna_2_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Spikevax (nucleoside modified) 0.1mg/0.5mL dose disp for inj MDV (Moderna)",
-        on_or_after="covid_vax_moderna_1_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-         return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
-    covid_vax_moderna_3_date=patients.with_tpp_vaccination_record(
-        product_name_matches="COVID-19 mRNA Vaccine Spikevax (nucleoside modified) 0.1mg/0.5mL dose disp for inj MDV (Moderna)",
-        on_or_after="covid_vax_moderna_2_date + 1 day",  
-        find_first_match_in_period=True,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {
-                "earliest": start_date,  
-                "latest": end_date,
-            },
-            "incidence": 0.5
-        },
-    ),
+    # pfizer
+  **vaccination_date_X(
+    name = "covid_vax_pfizer",
+    # use 1900 to capture all possible recorded covid vaccinations, including date errors
+    # any vaccines occurring before national rollout are later excluded
+    index_date = "1900-01-01", 
+    n = 3,
+    product_name_matches="COVID-19 mRNA Vaccine Comirnaty 30micrograms/0.3ml dose conc for susp for inj MDV (Pfizer)"
+  ),
+  
+  # az
+  **vaccination_date_X(
+    name = "covid_vax_az",
+    index_date = "1900-01-01",
+    n = 3,
+    product_name_matches="COVID-19 Vaccine Vaxzevria 0.5ml inj multidose vials (AstraZeneca)"
+  ),
+  
+  # moderna
+  **vaccination_date_X(
+    name = "covid_vax_moderna",
+    index_date = "1900-01-01",
+    n = 3,
+    product_name_matches="COVID-19 mRNA Vaccine Spikevax (nucleoside modified) 0.1mg/0.5mL dose disp for inj MDV (Moderna)"
+  ),
+  
+  # any covid vaccine
+  # use n=1 here as this is just used to exclude individuals from the unvaccinated arm
+  **vaccination_date_X(
+    name = "covid_vax_disease",
+    index_date = "1900-01-01",
+    n = 1,
+    target_disease_matches="SARS-2 CORONAVIRUS"
+  ),
 
     #############################
     ### DEMOGRAPHIC VARIABLES ###
@@ -244,6 +175,8 @@ study=StudyDefinition(
         },
     ),
 
+    # region, IMD and medically housebound defined on or before elig_date + 42 days,
+    # as this is the time-point at which they are used in eligibility criteria
     # region - NHS England 9 regions
     region=patients.registered_practice_as_of(
         "elig_date + 42 days",
@@ -292,7 +225,8 @@ study=StudyDefinition(
         ),
     ),
     
-    # end of life
+    # End of life care defined on or before elig_date +84 days, as this will be defined
+    # at the start of the SVP, and this is the latest date at which the SVP can start.
     endoflife_date=patients.with_these_clinical_events(
         eol_codes,
         returning="date",
@@ -324,75 +258,6 @@ study=StudyDefinition(
     ### EVENTS ###
     ##############
     
-    # positive covid test
-    positive_test_0_date=patients.with_test_result_in_sgss(
-        pathogen="SARS-CoV-2",
-        test_result="positive",
-        returning="date",
-        date_format="YYYY-MM-DD",
-        on_or_before=f"elig_date + {112 + 14 + (max_comparisons + 1)*28} days",
-        find_first_match_in_period=True,
-        restrict_to_earliest_specimen_date=True,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-
-    # probable covid case identified in primary care
-    # Will also had 'covid in primary care', but as far as I can see it was the same as this probable definition.
-    # I have used _0_ in these in case the study design changes to no longer exclude anyone with
-    # previous COVID, in which case the outcome variables must become recurrent
-    primary_care_covid_case_0_date=patients.with_these_clinical_events(
-        covid_primary_care_probable_combined,
-        returning="date",
-        date_format="YYYY-MM-DD",
-        on_or_before=f"elig_date + {112 + 14 + (max_comparisons + 1)*28} days",
-        find_first_match_in_period=True,
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01
-        },
-    ),
-    
-    # covid hospitalisation:
-    # from ACPS 
-    covidadmitted_0_date=patients.admitted_to_hospital(
-        returning="date_admitted",
-        with_these_diagnoses=covid_codes,
-        on_or_before=f"elig_date + {112 + 14 + (max_comparisons + 1)*28} days",
-        find_first_match_in_period=True,
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "exponential_increase",
-            "incidence": 0.01,
-        },
-    ),
-    # from ECDS
-    # any emergency attendance for covid
-    covidemergency_0_date=patients.attended_emergency_care(
-        returning="date_arrived",
-        on_or_before=end_date,
-        with_these_diagnoses=covid_emergency,
-        discharged_to=discharged_to_hospital,
-        date_format="YYYY-MM-DD",
-        find_first_match_in_period=True,
-    ),
-    
-    # covid death
-    coviddeath_date=patients.with_these_codes_on_death_certificate(
-        covid_codes,
-        returning="date_of_death",
-        date_format="YYYY-MM-DD",
-        return_expectations={
-            "date": {"earliest": start_date, "latest": end_date},
-            "rate": "uniform",
-            "incidence": 0.02
-        },
-    ),
     # any death
     death_date=patients.died_from_any_cause(
         returning="date_of_death",
@@ -412,4 +277,5 @@ study=StudyDefinition(
             "incidence": 0.001
         }
     ),
+
 )
