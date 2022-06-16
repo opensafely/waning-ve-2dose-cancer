@@ -43,7 +43,7 @@ eligibility_count <- eligibility_count %>%
   add_row(
     description = "Samples with age_2 < 18 removed",
     n =  n_distinct(data_eligible_a$patient_id),
-    stage = "a-in"
+    stage = "a-in" # this is part of inclusion criteria as JCVI groups not defined for under 18s (16 CV)
   )
 
 # remove if aged over 120 (to avoid probable errors)
@@ -135,7 +135,7 @@ eligibility_count <- eligibility_count %>%
 data_eligible_b <- data_eligible_b %>%
   filter(
     # first dose received before eligibility date
-    covid_vax_1_date > elig_date
+    covid_vax_1_date >= elig_date
   )
 eligibility_count <- eligibility_count %>%
   add_row(
