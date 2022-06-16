@@ -25,17 +25,6 @@ if(length(args)==0){
   outcome <- as.character(args[[4]])
 }
 
-subgroups <- c(
-  "cancer",
-  "noncancer",
-  "haem",
-  "solid",
-  "cancer_18-69",
-  "cancer_70+",
-  "noncancer_18-69",
-  "noncacner_70+"
-)
-
 ################################################################################
 # create output directories
 fs::dir_create(here::here("output", "preflight", "data"))
@@ -69,7 +58,7 @@ data_covs <- readr::read_rds(
 
 # time to event data
 data_tte_0 <- readr::read_rds(
-  here::here("output", "tte", "data", glue("data_tte_{outcome}.rds")))
+  here::here("output", "tte", "data", glue("data_tte_{outcome}.rds"))) 
 
 # select the arms to include
 if (comparison == "both") {
@@ -151,7 +140,9 @@ source(here::here("analysis", "functions", "redaction_functions.R"))
 ################################################################################
 # join tte data to covariates
 data_0 <- data_tte_3 %>%
-  left_join(data_covs, by = "patient_id") %>%
+  select(-ends_with("_subgroup")) %>%
+  left_join(data_covs, 
+            by = "patient_id") %>%
   mutate(strata_var = factor(str_c(jcvi_group, elig_date, region, sep = ", "))) %>%
   droplevels()
 
@@ -185,8 +176,24 @@ for (kk in 1:K) {
   data_1 <- data_00 %>%
     filter(k == kk)
   
-  # do not run if all periods dropped
-  if (nrow(data_1) > 0) {
+  # do not run for kk if all periods dropped
+  if (nrow(data_1) == 0) {
+    readr::write_file(
+      x="",
+      here::here("output", "preflight", "tables", glue("eventcheck_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.html")),
+      append = FALSE
+    )
+    readr::write_rds(
+      NULL,
+      here::here("output", "preflight", "data", glue("model_input_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.rds"))
+    )
+    capture.output(
+      print("No events"),
+      file = here::here("output", "preflight", "tables", glue("preflight_report_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.txt")),
+      append = FALSE
+    )
+    next
+  }
     
     # only keep categorical covariates with > 2 events per level per arm
     
@@ -403,72 +410,16 @@ for (kk in 1:K) {
     
     ################################################################################
     # create age variables
-    # if (str_detect(subgroup_index, "^2")) {
-    #   
-    #   # age and age^2 for subgroup 18-64 and vulnerable
-    #   data_4 <- data_3 %>%
-    #     mutate(
-    #       `age_18to64` = age,
-    #       `age_18to64_squared` = age * age
-    #     ) 
-    #   
-    # } else {
-    #   
-    #   # separate age terms for each jcvi_group / elig_date
-    #   data_3_list <- data_3 %>%
-    #     group_split(jcvi_group, elig_date) %>%
-    #     as.list()
-    #   
-    #   for (i in seq_along(data_3_list)) {
-    #     
-    #     g <- unique(data_3_list[[i]]$jcvi_group)
-    #     j <- unique(data_3_list[[i]]$elig_date)
-    #     
-    #     if (g == "07" && j == as.Date("2021-02-22")) {
-    #       # no age variable needed as all same age in strata
-    #       data_3_list[[i]] <- data_3_list[[i]] 
-    #       
-    #     } else if (g == "02") { 
-    #       # create age and age^2 term for jcvi group 2 (80+)
-    #       data_3_list[[i]] <- data_3_list[[i]] %>%
-    #         mutate(
-    #           age_80plus = age,
-    #           age_80plus_squared =  age * age
-    #         )
-    #       
-    #     } else {
-    #       # for all others, just create age term
-    #       age_range <- data_3_list[[i]] %>%
-    #         summarise(min(age), max(age)) %>%
-    #         unlist() %>% unname() %>% 
-    #         str_c(., collapse = "to")
-    #       
-    #       data_3_list[[i]] <- data_3_list[[i]] %>%
-    #         mutate(!! sym(glue("age_{age_range}")) := age) 
-    #       
-    #     }
-    #   }
-    #   
-    #   data_4 <- bind_rows(data_3_list) 
-    #   
-    # }
-    # 
-    # data_5 <- data_4 %>%
-    #   select(-age) %>%
-    #   mutate(across(starts_with("age"),
-    #                 ~ if_else(is.na(.x),
-    #                           0,
-    #                           as.double(.x))))
-    
-    data_5 <- data_3 %>% mutate(age_1=age, age_2=age*age) %>% select(-age)
+    data_5 <- data_3 %>% mutate(age2=age^2) 
     
     ################################################################################
     # define formulas
     
     formula_unadj <- formula(Surv(tstart, tstop, status, type = "counting") ~ k + strata(strata_var))
     
-    demog_vars <- c(names(data_5)[str_detect(names(data_5), "^age_")],
-                    unname(model_varlist$demographic[which(model_varlist$demographic %in% names(data_5))]))
+    demog_vars <- unname(model_varlist$demographic[which(model_varlist$demographic %in% names(data_5))])
+    demog_vars <- demog_vars[demog_vars != "age"]
+    demog_vars <- c("age", "age2", demog_vars)
     formula_demog <- as.formula(str_c(c(". ~ . ", demog_vars), collapse = " + "))
     
     clinical_vars <- unname(model_varlist$clinical[which(model_varlist$clinical %in% names(data_5))])
@@ -536,26 +487,5 @@ for (kk in 1:K) {
       append = FALSE
     )
     
-  } else {
-    # empty outputs to avoid errors
-    
-    readr::write_file(
-      x="",
-      here::here("output", "preflight", "tables", glue("eventcheck_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.html")),
-      append = FALSE
-    )
-    
-    readr::write_rds(
-      NULL,
-      here::here("output", "preflight", "data", glue("model_input_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.rds"))
-    )
-    
-    capture.output(
-      print("No events"),
-      file = here::here("output", "preflight", "tables", glue("preflight_report_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.txt")),
-      append = FALSE
-    )
-    
-  }
   
 } 
