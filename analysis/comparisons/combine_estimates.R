@@ -45,19 +45,15 @@ model_tidy_list <- lapply(
   all_files,
   function(filename) {
     filename_split <- unlist(str_split(str_remove(filename, ".rds"), "_"))
-    if (length(filename_split) > 6) {
-      extra_group <- filename_split[which(str_detect(filename_split, "Female|Male|65|75"))]
-      filename_split <- filename_split[filename_split!=extra_group]
-      filename_split[4] <- str_c(filename_split[4], "_", extra_group)
-    }
     readr::read_rds(
       here::here("output", "models_cox", "data", filename)
     ) %>%
       mutate(
         comparison = filename_split[3],
         subgroup = filename_split[4],
-        outcome = filename_split[5],
-        period = filename_split[6]
+        prior = as.logical(filename_split[5]),
+        outcome = filename_split[6],
+        period = filename_split[7]
         )
   }
 )
@@ -75,7 +71,7 @@ model_tidy_tibble <- bind_rows(
   ungroup() %>%
   # round n_obs_model up to nearest 7
   mutate(across(c(n_obs_model, exposure), ~ceiling_any(.x, to=7))) %>%
-  select(subgroup, comparison, outcome, model, period, variable, label, reference_row,
+  select(subgroup, comparison, prior, outcome, model, period, variable, label, reference_row,
          n_obs_model, estimate, conf.low, conf.high) 
 
 # check size of smallest model
