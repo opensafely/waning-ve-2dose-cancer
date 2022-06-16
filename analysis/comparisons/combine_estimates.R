@@ -33,29 +33,9 @@ comparisons <- c("BNT162b2", "ChAdOx1", "both")
 source(here::here("analysis", "functions", "redaction_functions.R"))
 
 ################################################################################
-# event_counts
-event_counts_all <- bind_rows(
-  lapply(
-    c("BNT162b2", "ChAdOx1"),
-    function(x)
-      readr::read_csv(
-        here::here("output", "tte", "data", glue("event_counts_{x}.csv")))
-  )
-) %>%
-  distinct() # because unvax group same in both datasets
-
-readr::write_csv(
-  event_counts_all,
-  here::here("output", "release_objects", "event_counts_all.csv"))
-
-readr::write_csv(
-  event_counts_all %>% filter(str_detect(subgroup, "65|75")),
-  here::here("output", "release_objects", "event_counts_6575.csv"))
-
-################################################################################
 # model estimates
 all_files <- list.files(path = here::here("output", "models_cox", "data"), 
-           pattern = "modelcox_tidy_\\w+_.+_\\w+_\\d.rds",
+           pattern = "modelcox_tidy_.+.rds",
            all.files = FALSE,
            full.names = FALSE, recursive = FALSE,
            ignore.case = FALSE, include.dirs = FALSE)
