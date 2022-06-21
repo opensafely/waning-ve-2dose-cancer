@@ -159,7 +159,10 @@ events_per_period <- data_0 %>%
   group_by(k, arm) %>%
   summarise(events = sum(status), .groups="keep") %>%
   ungroup(arm) %>%
-  summarise(min_events = min(events), .groups = "keep") %>%
+  summarise(
+    n = n(), # number of arms with events
+    min_events = min(events), # min event across arms
+    .groups = "keep") %>%
   ungroup() %>%
   mutate(keep = min_events > events_threshold)
 
