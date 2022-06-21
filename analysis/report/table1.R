@@ -137,7 +137,6 @@ make_table1 <- function(data, include_prior_infection = TRUE) {
   
   # get the name of the data object to label the analysis
   data_name <- str_remove(deparse(substitute(data)), "data_")
-  print(data_name)
   
   cat(glue("---- {data_name} ----\n"))
   
