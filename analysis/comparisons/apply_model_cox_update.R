@@ -16,7 +16,7 @@ args <- commandArgs(trailingOnly=TRUE)
 
 if(length(args)==0){
   # use for interactive testing
-  comparison <- "both"
+  comparison <- "BNT162b2"
   subgroup_index <- 1L
   include_prior_infection <- TRUE
   outcome <- "anytest"
@@ -50,15 +50,17 @@ model_tidy <- list()
 
 for (kk in 1:K) {
   
+  # specify filename_suffix for saving models
+  filename_suffix <- glue("{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}")
+  
   # read data
   model_input <-  readr::read_rds(
-    here::here("output", "preflight", "data", glue("model_input_{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}.rds"))
+    here::here("output", "preflight", "data", glue("model_input_{filename_suffix}.rds"))
   )
   cat(glue("k={kk}: is.null(model_input):"), "\n")
   print(is.null(model_input))
   
-  # specify filename_suffix for saving models
-  filename_suffix <- glue("{comparison}_{subgroup_index}_{include_prior_infection}_{outcome}_{kk}")
+  
   
   
   if (is.null(model_input)) {
@@ -80,6 +82,12 @@ for (kk in 1:K) {
       tibble(),
       here::here("output", "models_cox", "data", glue("modelx_{comparison}_{filename_suffix}.rds")), 
       compress="gz")
+    
+    readr::write_rds(
+      tibble(),
+      here::here("output", "models_cox", "data", glue("model_object_empty_{filename_suffix}.rds")),
+      compress = "gz"
+    )
     
   } else {
     
