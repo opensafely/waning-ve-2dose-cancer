@@ -318,31 +318,6 @@ make_table1 <- function(data, include_prior_infection = TRUE) {
     out,
     here::here("output", "report", "tables", glue("table1_{data_name}_{include_prior_infection}_REDACTED.csv"))
     )
-  
-  cat("---- save table1.html ----\n")
-  out %>%
-    gt(
-      groupname_col="Variable",
-      rowname_col = "Characteristic"
-    ) %>%
-    tab_header(
-      title = glue("Analysis: {data_name}"),
-      subtitle = "Patient characteristics as of second vaccination period + 2 weeks") %>%
-    tab_style(
-      style = cell_text(weight="bold"),
-      locations = list(
-        cells_column_labels(
-          columns = everything()
-        ),
-        cells_row_groups(
-          groups = everything()
-        ))
-    ) %>%
-    gtsave(
-      filename = glue("table1_{data_name}_{include_prior_infection}_REDACTED.html"),
-      path = here::here("output", "report", "tables")
-    )
-  
 }
 
 ################################################################################
@@ -368,7 +343,7 @@ data_type <- data_tables %>%
 # data_age for cancer vs non cancer in age groups
 data_age <- data_tables %>%
   mutate(
-    subgroup = str_c(if_else(cancer_subgroup == "noncancer", "noncancer", "cancer"), age_subgroup, sep = "; ")
+    subgroup = str_c(if_else(cancer_subgroup == "noncancer", "noncancer", "cancer"), age_subgroup, sep = "_")
   ) 
 
 ################################################################################
