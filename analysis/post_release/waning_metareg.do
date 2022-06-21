@@ -33,29 +33,7 @@ gen seloghr=(se1+se2)/2
 drop se1 se2 lnu lnl
 
 * create strata from subgroup
-gen stratum=1 if subgroup=="65+ years"
-replace stratum=2 if subgroup=="18-64 years and clinically vulnerable"
-replace stratum=3 if subgroup=="40-64 years"
-replace stratum=4 if subgroup=="18-39 years"
-
-* create sex
-rename sex temp
-
-gen sex=1 if temp=="Both"
-replace sex=2 if temp=="Female"
-replace sex=3 if temp=="Male"
-
-label define sex 1 "Both" 2 "Female" 3 "Male" 
-label values sex sex
-drop temp
-
-* create ageband
-rename ageband temp
-gen ageband=1 if temp=="all"
-replace ageband=2 if temp=="65-74 years"
-replace ageband=3 if temp=="75+ years"
-
-drop temp
+rename subgroup stratum 
 
 * create outcome
 rename outcome temp
@@ -76,53 +54,62 @@ encode comparison, gen(vaccine)
 tab vaccine
 label list vaccine
 
+* create vaccine from comparison
+rename model temp
+gen model=1 if temp=="unadjusted"
+replace model=2 if temp=="part_adjusted"
+replace model=3 if temp=="max_adjusted"
+
+label define model 1 "unadjusted" 2 "part_adjusted" 3 "max_adjusted" 
+label values model model
+drop temp
+
 replace k=k-1
 
-sort outcome stratum sex vaccine
+sort model outcome stratum vaccine
 save waning_metareg.dta, replace
 
-metareg loghr k if outcome==1 & stratum==1 & sex==1 & ageband==1 & vaccine==3, wsse(seloghr)
-local a=_b[k]
-local b=_se[k]
-local c=_b[_cons]
-local d=_se[_cons]
-
-di `a'
-di `b'
-di `c'
-di `d'
+* what is the point of lines 63-72?
+// metareg loghr k if outcome==2 & stratum==2 & vaccine==1, wsse(seloghr)
+// local a=_b[k]
+// local b=_se[k]
+// local c=_b[_cons]
+// local d=_se[_cons]
+//
+// di `a'
+// di `b'
+// di `c'
+// di `d'
 
 tempname memhold
-postfile `memhold' outcome stratum sex ageband vaccine logrhr selogrhr loghr1 seloghr1 using results, replace
+postfile `memhold' model outcome stratum vaccine logrhr selogrhr loghr1 seloghr1 using results, replace
 
-  forvalues i=1/5 {
-  	forvalues v=1/3 {
-		forvalues s=1/4 {
-		forvalues x=1/3 {
-			forvalues g=1/3 {
-				di "A: " `i' `s' `g' `x' `v'
+forvalues m=1/3 {
+	forvalues i=1/5 {
+		forvalues v=1/3 {
+			forvalues s=1/4 {
+				di "A: " `m' `i' `s' `v'
 
-				count if outcome==`i' & stratum==`s' & sex==`g' & ageband==`x' & vaccine==`v' &loghr<.
+				count if model==`m' & outcome==`i' & stratum==`s' & vaccine==`v' & loghr<.
 				if r(N)>2 {
-				di "B: " `i' `s' `g' `a' `v'
-				metareg loghr k if outcome==`i' & stratum==`s' & sex==`g' & ageband==`x' & vaccine==`v', wsse(seloghr)
+				di "B: " `a' /*`m' `i' `s' `a' `v'*/
+				metareg loghr k if model==`m' & outcome==`i' & stratum==`s' & vaccine==`v', wsse(seloghr)
 				local a=_b[k]
 				local b=_se[k]
 				local c=_b[_cons]
 				local d=_se[_cons]
-				post `memhold' (`i') (`s') (`g') (`x') (`v') (`a') (`b') (`c') (`d')
+				post `memhold' (`m') (`i') (`s') (`v') (`a') (`b') (`c') (`d')
 				}			
 			}				
 		}
-		}
-	}
-  }
+	}	
+}
 
 postclose `memhold'
 di "`memhold'"
 
 use results, clear
-sort outcome stratum sex vaccine
+sort model outcome stratum vaccine
 save results, replace
 
 log close
