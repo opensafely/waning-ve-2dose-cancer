@@ -510,8 +510,7 @@ actions_list <- splice(
     moderately_sensitive = list(
       eligibility_count_p1 = "output/tables/eligibility_count_p1.csv",
       eligibility_count_all = "output/tables/eligibility_count_all.csv",
-      table_csv = "output/report/tables/table1_*_REDACTED.csv",
-      table_html = "output/report/tables/table1_*_REDACTED.html"
+      table1 = "output/report/tables/table1_*_REDACTED.csv"
     )
   ),
   
