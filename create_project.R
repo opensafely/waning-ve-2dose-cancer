@@ -631,7 +631,17 @@ actions_list <- splice(
     moderately_sensitive = list(
       estimates_all = glue("output/release_objects/estimates*.csv")
     )
-  )#,
+  ),
+  
+  comment("plot all three models for each subgroup"),
+  action(
+    name = "plot_all",
+    run = "r:latest analysis/post_release/plot_cox_all.R",
+    needs = list("combine_estimates"),
+    moderately_sensitive = list(
+      plots = "output/release_objects/checking/hr_models_*.png"
+    )
+  )
   
   # comment("####################################",
   #         "plot to check estimates", 

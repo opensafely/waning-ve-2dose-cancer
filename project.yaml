@@ -2086,3 +2086,13 @@ actions:
       moderately_sensitive:
         estimates_all: output/release_objects/estimates*.csv
 
+  ## plot all three models for each subgroup 
+
+  plot_all:
+    run: r:latest analysis/post_release/plot_cox_all.R
+    needs:
+    - combine_estimates
+    outputs:
+      moderately_sensitive:
+        plots: output/release_objects/checking/hr_models_*.png
+
