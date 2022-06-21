@@ -61,12 +61,12 @@ model_tidy_list <- lapply(
 model_tidy_tibble <- bind_rows(
   model_tidy_list[sapply(model_tidy_list, function(x) is_tibble(x))]
 ) %>%
-  mutate(across(label, 
-                ~ if_else(
-                  variable == "k" & label != "0",
-                  period,
-                  .x
-                ))) %>%
+  # mutate(across(label, 
+  #               ~ if_else(
+  #                 variable == "k" & label != "0",
+  #                 period,
+  #                 .x
+  #               ))) %>%
   mutate(across(c(estimate, conf.low, conf.high), round, 5)) %>%
   mutate(across(model, 
                 factor, levels = 1:3, labels = c("unadjusted", "part_adjusted", "max_adjusted"))) %>%
