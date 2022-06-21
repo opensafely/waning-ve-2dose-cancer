@@ -9,7 +9,11 @@ library(lubridate)
 library(glue)
 
 ################################################################################
-if (!exists("release_folder")) release_folder <- here::here("output", "release_objects")
+if (!exists("release_folder")) {
+  release_folder <- here::here("output", "release_objects")
+  fs::dir_create(file.path(release_folder))
+  fs::dir_create(file.path(release_folder, "checking"))
+}
 
 ################################################################################
 # read study parameters
@@ -38,11 +42,11 @@ comparisons_new <- c("BNT162b2", "ChAdOx1", "Combined")
 
 ################################################################################
 # read estimates data
-estimates_all <- readr::read_csv(here::here(release_folder, "estimates_all.csv")) 
+estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
 
 # read metareg data
 metareg_results_k <- readr::read_rds(
-  here::here(release_folder, "metareg_results_k.rds")) %>%
+  file.path(release_folder, "metareg_results_k.rds")) %>%
   select(subgroup, comparison, outcome, k, starts_with("line")) %>%
   mutate(model="adjusted") 
 
@@ -207,7 +211,7 @@ anytest_y1 <- list(breaks = c(0.5, 1, 2, 5),
 # 1 plot per subgroup, facet_rows=outcome, facet_cols=brand, shades=model
 plot_models <- function(group, include_prior_infection) {
   
-  group_index <- group
+  group_colour <- group
   if (group %in% 5:6) {
     group_colour <- 1
   } else if (group %in% 7:8) {
@@ -252,7 +256,7 @@ plot_models <- function(group, include_prior_infection) {
     geom_point(
       aes(
         y = estimate,
-        shape = prior
+        shape = subgroup
         ),
       position = position_dodge(width = position_dodge_val)
     ) +
@@ -321,803 +325,810 @@ plot_models <- function(group, include_prior_infection) {
     ) 
   
   ggsave(p,
-         filename = here::here(release_folder, glue("hr_models_{group}_{include_prior_infection}.png")),
+         filename = file.path(release_folder, "checking", glue("hr_models_{group}_{include_prior_infection}.png")),
          width=page_height, height=page_width, units="cm")
     
 }
 
 for (x in 1:8) {
   for (y in c(TRUE, FALSE)) {
-    plot_models(group=x, include_prior_infection = y)
+    try(plot_models(group=x, include_prior_infection = y))
   }
 }
 
 ################################################################################
+# "analysis" plots:
+## cancer, non cancer
+## cancer, non cancer x prior, no prior
+## haem, solid
+## haem, solid x prior, no prior
+## cancer, non cancer x 18-69, 70+
 
-# vaccine vs unvaccinated
-plot_vax <- plot_data %>%
-  filter(
-    sex == "Both",
-    comparison != "both",
-    ageband == "all",
-    outcome_unlabelled != "anytest",
-    as.integer(model) == 2
-  ) %>%
-  droplevels() %>%
-  ggplot(aes(
-    x = reorder(k_labelled_dates, order), 
-    colour = comparison, 
-    shape = comparison,
-    fill = comparison
-  )) +
-  geom_hline(aes(yintercept=1), colour='grey') +
-  geom_line(
-    aes(y = line, 
-        colour = comparison, 
-        linetype = comparison,
-        group = line_group), 
-    alpha = 0.6
-  ) +
-  geom_linerange(
-    aes(ymin = conf.low, ymax = conf.high),
-    position = position_dodge(width = position_dodge_val)
-  ) +
-  geom_point(
-    aes(y = estimate),
-    position = position_dodge(width = position_dodge_val)
-  ) +
-  facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") +
-  scale_y_log10(
-    name = y_lab_adj,
-    breaks = primary_vax_y1[["breaks"]],
-    limits = primary_vax_y1[["limits"]],
-    oob = scales::oob_keep,
-    sec.axis = sec_axis(
-      ~(1-.),
-      name=y_lab_adj_2,
-      breaks = primary_vax_y2[["breaks"]],
-      labels = function(x){formatpercent100(x, 1)}
-    )
-  ) +
-  labs(
-    x = x_lab
-  ) +
-  scale_fill_discrete(guide = "none") +
-  scale_shape_manual(values = comparison_shapes[1:2], name = NULL) +
-  scale_color_manual(values = palette_adj[1:2], name = NULL) +
-  scale_linetype_manual(values = comparison_linetypes[1:2], name = NULL) +
-  guides(shape = guide_legend(
-    title = NULL, 
-    override.aes = list(colour = palette_adj[1:2], fill = comparison_shapes[1:2])
-  )) +
-  theme_bw() +
-  theme(
-    panel.border = element_blank(),
-    axis.line.y = element_line(colour = "black"),
-    
-    axis.text = element_text(size=10),
-    
-    axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-    axis.text.x = element_text(size=8),
-    axis.text.y = element_text(size=8),
-    
-    panel.grid.minor.x = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    strip.background = element_blank(),
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0),
-    strip.text = element_text(size=8),
-    
-    panel.spacing = unit(0.8, "lines"),
-    
-    plot.title = element_text(hjust = 0),
-    plot.title.position = "plot",
-    plot.caption.position = "plot",
-    plot.caption = element_text(hjust = 0, face= "italic"),
-    
-    legend.position = c(0.88, 0.14),
-    # big margins to cover up grid lines
-    legend.margin = margin(t = 30, r = 20, b = 30, l = 10),
-    legend.key.width = unit(2, 'cm'),
-    # legend.position = "bottom",
-    legend.text = element_text(size=10)
-  ) 
-
-# save the plot
-ggsave(plot_vax,
-       filename = here::here(release_folder, glue("hr_vax.png")),
-       width=page_height, height=page_width, units="cm")
-
-
-ggsave(plot_vax + theme(plot.margin = margin(2, 2, 2, 2, "cm")),
-       filename = here::here(release_folder, glue("hr_vax.pdf")),
-       width=page_height, height=page_width, units="cm")
-
-################################################################################
-# brand comparison
-plot_brand <- plot_data %>%
-  filter(
-    sex == "Both",
-    ageband == "all",
-    comparison == "both",
-    outcome_unlabelled != "anytest",
-    as.integer(model) == 2
-  ) %>%
-  droplevels() %>%
-  # complete(subgroup, comparison, outcome, k_labelled) %>%
-  ggplot(aes(
-    x = reorder(k_labelled_dates, order)
-  )) +
-  geom_hline(aes(yintercept=1), colour='grey') +
-  geom_line(
-    aes(y = line, 
-        group = line_group), 
-    linetype = comparison_linetypes[3],
-    colour=palette_adj[3],
-    alpha = 0.6
-  ) +
-  geom_linerange(
-    aes(ymin = conf.low, ymax = conf.high), 
-    position = position_dodge(width = position_dodge_val),
-    color = palette_adj[3],
-    fill = palette_adj[3]
-  ) +
-  geom_point(
-    aes(y = estimate),
-    position = position_dodge(width = position_dodge_val),
-    color = palette_adj[3],
-    fill = palette_adj[3],
-    shape = comparison_shapes[3]
-  ) +
-  facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") +
-  scale_y_log10(
-    name = y_lab_adj,
-    breaks = primary_brand_y1[["breaks"]],
-    limits = primary_brand_y1[["limits"]],
-    oob = scales::oob_keep) +
-  guides(
-    color = guide_legend(override.aes = list(linetype = 0))
-  ) +
-  labs(
-    x = x_lab
-  ) +
-  theme_bw() +
-  theme(
-    panel.border = element_blank(),
-    axis.line.y = element_line(colour = "black"),
-    
-    axis.text = element_text(size=10),
-    
-    axis.title.x = element_text(size = 10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(size = 10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-    axis.text.x = element_text(size=8),
-    axis.text.y = element_text(size=8),
-    
-    panel.grid.minor.x = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    strip.background = element_blank(),
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0),
-    strip.text = element_text(size=8),
-    
-    panel.spacing = unit(0.8, "lines"),
-    
-    plot.title = element_text(hjust = 0),
-    plot.title.position = "plot",
-    plot.caption.position = "plot",
-    plot.caption = element_text(hjust = 0, face= "italic")
-    
-  ) 
-ggsave(plot_brand,
-       filename = here::here(release_folder, glue("hr_brand.png")),
-       width=page_height, height=page_width, units="cm")
-ggsave(plot_brand + theme(plot.margin = margin(2, 2, 2, 2, "cm")),
-       filename = here::here(release_folder, glue("hr_brand.pdf")),
-       width=page_height, height=page_width, units="cm")
-
-################################################################################
-# anytest
-# vaccine vs unvaccinated
-plot_vax_anytest <- plot_data %>%
-  filter(
-    sex == "Both",
-    ageband == "all",
-    comparison != "both",
-    outcome_unlabelled == "anytest",
-    as.integer(model) == 2
-  ) %>%
-  ggplot(aes(
-    x = reorder(k_labelled_dates, order), 
-    y = estimate, 
-    colour = comparison, 
-    shape = comparison,
-    fill = comparison)) +
-  geom_hline(aes(yintercept=1), colour='grey') +
-  geom_line(
-    aes(y = line, 
-        colour=comparison, 
-        linetype = comparison,
-        group = line_group), 
-    alpha = 0.6
-  ) +
-  geom_linerange(
-    aes(ymin = conf.low, ymax = conf.high),
-    position = position_dodge(width = position_dodge_val)) +
-  geom_point(
-    position = position_dodge(width = position_dodge_val)
-  ) +
-  facet_wrap( ~ subgroup, scales = "free") +
-  scale_y_log10(
-    name = y_lab_adj,
-    breaks = anytest_y1[["breaks"]],
-    limits = anytest_y1[["limits"]],
-    oob = scales::oob_keep
-  ) +
-  labs(
-    x = x_lab,
-    title = "Any SARS-CoV-2 test"
-  ) +
-  scale_shape_manual(values = comparison_shapes[1:2], name = NULL) +
-  scale_color_manual(values = palette_adj[1:2], name = NULL) +
-  scale_fill_discrete(guide = "none") +
-  scale_linetype_manual(values = comparison_linetypes[1:2], name = NULL) +
-  guides(shape = guide_legend(
-    title = NULL, 
-    override.aes = list(colour = palette_adj[1:2], fill = comparison_shapes[1:2])
-  )) +
-  theme_bw() +
-  theme(
-    panel.border = element_blank(),
-    axis.line.y = element_line(colour = "black"),
-    
-    axis.text = element_text(size=10),
-    
-    axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-    axis.text.x = element_text(size=8),
-    axis.text.y = element_text(size=8),
-    
-    panel.grid.minor.x = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    strip.background = element_blank(),
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0),
-    strip.text = element_text(size=8),
-    
-    panel.spacing = unit(0.8, "lines"),
-    
-    plot.title = element_text(hjust = 0, size=10),
-    plot.title.position = "plot",
-    plot.caption.position = "plot",
-    plot.caption = element_text(hjust = 0, face= "italic"),
-    
-    legend.position = "bottom",
-    legend.key.width = unit(2, 'cm'),
-    legend.text = element_text(size=10)
-  ) 
-
-# save the plot
-ggsave(plot_vax_anytest,
-       filename = here::here(release_folder, glue("hr_vax_anytest.png")),
-       width=page_width, height=12, units="cm")
-
-################################################################################
-# anytest
-# brand comparison
-plot_brand_anytest <- plot_data %>%
-  filter(
-    sex == "Both",
-    ageband == "all",
-    comparison == "both",
-    outcome_unlabelled == "anytest",
-    as.integer(model) == 2
-  ) %>%
-  droplevels() %>%
-  ggplot(aes(
-    x = reorder(k_labelled, order), 
-    y = estimate)) +
-  geom_hline(aes(yintercept=1), colour='grey') +
-  geom_line(
-    aes(y = line, 
-        group = line_group), 
-    colour = palette_adj[3],
-    linetype=comparison_linetypes[3], 
-    alpha = 0.6
-  ) +
-  geom_linerange(
-    aes(ymin = conf.low, ymax = conf.high), 
-    position = position_dodge(width = position_dodge_val),
-    color = palette_adj[3],
-    fill = palette_adj[3]
-  ) +
-  geom_point(
-    position = position_dodge(width = position_dodge_val),
-    color = palette_adj[3],
-    fill = palette_adj[3],
-    shape = comparison_shapes[3]
-  ) +
-  facet_wrap( ~ subgroup, scales = "free", ncol=2) +
-  scale_y_log10(
-    name = y_lab_adj,
-    breaks = anytest_y1[["breaks"]],
-    limits = anytest_y1[["limits"]],
-    oob = scales::oob_keep
-  ) +
-  labs(
-    x = x_lab,
-    title = "Any SARS-CoV-2 test"
-  ) +
-  theme_bw() +
-  theme(
-    panel.border = element_blank(),
-    axis.line.y = element_line(colour = "black"),
-    
-    axis.text = element_text(size=10),
-    
-    axis.title.x = element_text(size = 10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(size = 10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-    axis.text.x = element_text(size=8),
-    axis.text.y = element_text(size=8),
-    
-    panel.grid.minor.x = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    strip.background = element_blank(),
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0),
-    strip.text = element_text(size=8),
-    
-    panel.spacing = unit(0.8, "lines"),
-    
-    plot.title = element_text(hjust = 0, size=10),
-    plot.title.position = "plot",
-    plot.caption.position = "plot",
-    plot.caption = element_text(hjust = 0, face= "italic")
-  ) 
-ggsave(plot_brand_anytest,
-       filename = here::here(release_folder, glue("hr_brand_anytest.png")),
-       width=page_width, height=12, units="cm")
-
-################################################################################
-# unadjusted and adjusted estimates for each comparison
-
-plot_unadj_adj <- function(plot_comparison) {
-  
-  i <- which(comparisons == plot_comparison)
-  palette <- unname(c(palette_unadj[i], palette_adj[i]))
-  names(palette) <- levels(plot_data$model)
-  point_shapes <- unname(comparison_shapes[i])
-  
-  # vaccine vs unvaccinated
-  plot_vax_0 <- plot_data %>%
-    filter(
-      sex == "Both",
-      ageband == "all",
-      comparison == plot_comparison,
-      outcome_unlabelled != "anytest"
-    ) %>%
-    ggplot(aes(
-      x = reorder(k_labelled_dates, order), 
-      y = estimate, 
-      colour = model, 
-      fill = model)) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_linerange(
-      aes(ymin = conf.low, ymax = conf.high),
-      position = position_dodge(width = position_dodge_val)) +
-    geom_point(
-      position = position_dodge(width = position_dodge_val),
-      shape = point_shapes
-    ) +
-    facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") 
-  
-  if (plot_comparison == "both") {
-    
-    plot_vax_1 <- plot_vax_0  +
-      scale_y_log10(
-        name = "Hazard ratio (HR)",
-        breaks = c(0.02, 0.05, 0.2, 0.5, 1, 2),
-        limits = c(0.02, 2),
-        oob = scales::oob_keep
-      )
-    
-  } else {
-    
-    plot_vax_1 <- plot_vax_0  +
-      scale_y_log10(
-        name = y_lab,
-        breaks = primary_vax_y1[["breaks"]],
-        limits = primary_vax_y1[["limits"]],
-        oob = scales::oob_keep,
-        sec.axis = sec_axis(
-          ~(1-.),
-          name=y_lab_2,
-          breaks = c(0,0.5,0.8, 0.95, 0.98),
-          labels = function(x){formatpercent100(x, 1)}
-        )
-      )
-    
-  }
-  
-  plot_vax_2 <- plot_vax_1 +
-    labs(
-      x = x_lab
-    ) +
-    scale_colour_manual(name = NULL,
-                        values = palette) +
-    scale_fill_manual(guide = "none",
-                      values = palette) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.y = element_line(colour = "black"),
-      
-      axis.text = element_text(size=10),
-      
-      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-      axis.text.x = element_text(size=8),
-      axis.text.y = element_text(size=8),
-      
-      panel.grid.minor.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      strip.background = element_blank(),
-      strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0),
-      strip.text = element_text(size=8),
-      
-      panel.spacing = unit(0.8, "lines"),
-      
-      plot.title = element_text(hjust = 0),
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(hjust = 0, face= "italic"),
-      
-      legend.position = "bottom",
-      legend.text = element_text(size=8)
-    ) 
-  
-  # save the plot
-  ggsave(plot_vax_2,
-         filename = here::here(release_folder, glue("hr_vax_{plot_comparison}_unadj.png")),
-         width=page_height, height=page_width, units="cm")
-  
-  # plot comparison
-  plot_vax_anytest <- plot_data %>%
-    filter(
-      sex == "Both",
-      ageband == "all",
-      comparison == plot_comparison,
-      outcome_unlabelled == "anytest"
-    ) %>%
-    ggplot(aes(
-      x = reorder(k_labelled_dates, order), 
-      y = estimate, 
-      colour = model, 
-      fill = model)) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_linerange(
-      aes(ymin = conf.low, ymax = conf.high),
-      position = position_dodge(width = position_dodge_val)) +
-    geom_point(
-      position = position_dodge(width = position_dodge_val),
-      shape = point_shapes
-    ) +
-    facet_wrap( ~ subgroup, scales = "free", nrow=2) +
-    scale_y_log10(
-      name = y_lab,
-      breaks = anytest_y1[["breaks"]],
-      limits = anytest_y1[["limits"]],
-      oob = scales::oob_keep
-    ) +
-    labs(
-      x = x_lab,
-      title = "Any SARS-CoV-2 test"
-    ) +
-    scale_colour_manual(name = NULL,
-                        values = palette) +
-    scale_fill_manual(guide = "none",
-                      values = palette) +
-    guides(colour=guide_legend(nrow=2)) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.y = element_line(colour = "black"),
-      
-      axis.text = element_text(size=10),
-      
-      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-      axis.text.x = element_text(size=8),
-      axis.text.y = element_text(size=8),
-      
-      panel.grid.minor.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      strip.background = element_blank(),
-      strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0),
-      strip.text = element_text(size=8),
-      
-      panel.spacing = unit(0.8, "lines"),
-      
-      plot.title = element_text(hjust = 0, size=10),
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(hjust = 0, face= "italic"),
-      
-      legend.position = "bottom",
-      legend.text = element_text(size=10)
-    ) 
-  
-  # save the plot
-  ggsave(plot_vax_anytest,
-         filename = here::here(release_folder, glue("hr_vax_anytest_{plot_comparison}_unadj.png")),
-         width=page_width, height=12, units="cm")
-  
-}
-
-for (i in c("BNT162b2", "ChAdOx1", "both")) {
-  plot_unadj_adj(i)
-}
-
-################################################################################
-# sex stratified results for each comparison
-
-plot_strata <- function(plot_comparison, strata) {
-  
-  plot_data_0 <- plot_data %>%
-    filter(
-      comparison == plot_comparison,
-      as.integer(model) == 2
-    )
-  
-  leg_pos <- "bottom"
-  if (strata == "sex") {
-    strata_labs <- c("Female", "Male")
-    plot_data_1 <- plot_data_0 %>%
-      filter(
-        sex != "Both"
-      ) %>%
-      rename(strata_var = !! strata)
-    leg_rows <- 1
-    strata_page_width <- 27
-    strata_page_height <- 16
-  } else if( strata == "ageband") {
-    strata_labs <- c("65-74 years", "75+ years")
-    plot_data_1 <- plot_data_0 %>%
-      filter(
-        ageband != "all"
-      ) %>%
-      rename(strata_var = !! strata)
-    leg_rows <- 2
-    strata_page_height <- 16
-    strata_page_width <- 14
-  } else {
-    stop("strata must be sex or ageband")
-  }
-  
-  i <- which(comparisons == plot_comparison)
-  palette <- palette_adj[i]
-  point_shapes <- unname(c(comparison_shapes[i], hollow_shapes[i]))
-  names(point_shapes) <- strata_labs
-  fill_shapes <- c(palette, "white")
-  names(fill_shapes) <- strata_labs
-  line_types <- c("dashed", "dotted")
-  names(line_types) <- strata_labs
-  
-  # vaccine vs unvaccinated
-  plot_vax_0 <- plot_data_1 %>%
-    filter(
-      outcome_unlabelled != "anytest"
-    ) %>%
-    ggplot(aes(
-      x = reorder(k_labelled_dates, order), 
-      y = estimate,
-      colour = comparison,
-      fill = strata_var,
-      shape = strata_var)) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_line(
-      aes(y = line, 
-          linetype = strata_var,
-          group = line_group), 
-      colour = palette,
-      alpha = 0.6
-    ) +
-    geom_linerange(
-      aes(ymin = conf.low, ymax = conf.high),
-      position = position_dodge(width = position_dodge_val)) +
-    geom_point(
-      position = position_dodge(width = position_dodge_val)
-    ) +
-    facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") 
-  
-  if (plot_comparison == "both") {
-    
-    plot_vax_1 <- plot_vax_0  +
-      scale_y_log10(
-        name = y_lab_adj,
-        breaks = c(0.02, 0.05, 0.2, 0.5, 1, 2),
-        limits = c(0.02, 2),
-        oob = scales::oob_keep
-      )
-    
-  } else {
-    
-    plot_vax_1 <- plot_vax_0  +
-      scale_y_log10(
-        name = y_lab_adj,
-        breaks = primary_vax_y1[["breaks"]],
-        limits = primary_vax_y1[["limits"]],
-        oob = scales::oob_keep,
-        sec.axis = sec_axis(
-          ~(1-.),
-          name=y_lab_adj_2,
-          breaks = c(0,0.5,0.8, 0.95, 0.98),
-          labels = function(x){formatpercent100(x, 1)}
-        )
-      )
-    
-  }
-  
-  plot_vax_2 <- plot_vax_1 +
-    labs(
-      x = x_lab
-    ) +
-    scale_linetype_manual(
-      name = NULL,
-      values = line_types
-    ) +
-    scale_shape_manual(
-      values = point_shapes
-    ) +
-    scale_colour_manual(guide = "none",
-                        values = palette) +
-    scale_fill_manual(guide = "none",
-                      values = fill_shapes) +
-    guides(
-      shape = guide_legend(
-        title = NULL, 
-        override.aes = list(colour = palette, fill = fill_shapes),
-        nrow=leg_rows, byrow=TRUE
-      )
-    ) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.y = element_line(colour = "black"),
-      
-      axis.text = element_text(size=10),
-      
-      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-      axis.text.x = element_text(size=8),
-      axis.text.y = element_text(size=8),
-      
-      panel.grid.minor.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      strip.background = element_blank(),
-      strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0),
-      strip.text = element_text(size=8),
-      
-      panel.spacing = unit(0.8, "lines"),
-      
-      plot.title = element_text(hjust = 0),
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(hjust = 0, face= "italic"),
-      
-      legend.position = leg_pos,
-      legend.key.width = unit(2, 'cm'),
-      legend.text = element_text(size=8)
-    ) 
-  
-  # save the plot
-  ggsave(plot_vax_2,
-         filename = here::here(release_folder, glue("hr_vax_{plot_comparison}_{strata}.png")),
-         width=strata_page_width, height=strata_page_height, units="cm")
-  
-  
-  strata_page_width <- 16
-  strata_page_height <- 12
-  if (strata=="ageband") {
-    strata_page_height <- 8
-    leg_pos <- "right"
-  }
-  # plot comparison anytest
-  plot_vax_anytest <- plot_data_1 %>%
-    filter(
-      outcome_unlabelled == "anytest"
-    ) %>%
-    ggplot(aes(
-      x = reorder(k_labelled_dates, order), 
-      y = estimate, 
-      shape = strata_var,
-      colour = comparison, 
-      fill = strata_var)) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_line(
-      aes(y = line, 
-          linetype = strata_var,
-          group = line_group), 
-      colour = palette,
-      alpha = 0.6
-    ) +
-    geom_linerange(
-      aes(ymin = conf.low, ymax = conf.high),
-      position = position_dodge(width = position_dodge_val)) +
-    geom_point(
-      position = position_dodge(width = position_dodge_val)
-    ) +
-    facet_wrap( ~ subgroup, scales = "free", nrow=2) +
-    scale_y_log10(
-      name = y_lab_adj,
-      breaks = anytest_y1[["breaks"]],
-      limits = anytest_y1[["limits"]],
-      oob = scales::oob_keep
-    ) +
-    labs(
-      x = x_lab,
-      title = "Any SARS-CoV-2 test"
-    ) +
-    scale_linetype_manual(
-      name = NULL,
-      values = line_types
-    ) +
-    scale_shape_manual(
-      values = point_shapes
-    ) +
-    scale_colour_manual(guide = "none",
-                        values = palette) +
-    scale_fill_manual(guide = "none",
-                      values = fill_shapes) +
-    guides(
-      shape = guide_legend(
-        title = NULL, 
-        override.aes = list(colour = palette, fill = fill_shapes),
-        nrow=leg_rows, byrow=TRUE)
-    ) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.y = element_line(colour = "black"),
-      
-      axis.text = element_text(size=10),
-      
-      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-      axis.text.x = element_text(size=8),
-      axis.text.y = element_text(size=8),
-      
-      panel.grid.minor.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      strip.background = element_blank(),
-      strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0),
-      strip.text = element_text(size=8),
-      
-      panel.spacing = unit(0.8, "lines"),
-      
-      plot.title = element_text(hjust = 0, size=10),
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(hjust = 0, face= "italic"),
-      
-      legend.position = leg_pos,
-      legend.key.width = unit(2, 'cm'),
-      legend.text = element_text(size=10)
-    ) 
-  
-  # save the plot
-  ggsave(plot_vax_anytest,
-         filename = here::here(release_folder, glue("hr_vax_anytest_{plot_comparison}_{strata}.png")),
-         width=strata_page_width, height=strata_page_height, units="cm")
-  
-}
-
-for (i in c("BNT162b2", "ChAdOx1", "both")) {
-  plot_strata(i, strata = "sex")
-  plot_strata(i, strata = "ageband")
-}
+# 
+# # vaccine vs unvaccinated
+# plot_vax <- plot_data %>%
+#   filter(
+#     sex == "Both",
+#     comparison != "both",
+#     ageband == "all",
+#     outcome_unlabelled != "anytest",
+#     as.integer(model) == 2
+#   ) %>%
+#   droplevels() %>%
+#   ggplot(aes(
+#     x = reorder(k_labelled_dates, order), 
+#     colour = comparison, 
+#     shape = comparison,
+#     fill = comparison
+#   )) +
+#   geom_hline(aes(yintercept=1), colour='grey') +
+#   geom_line(
+#     aes(y = line, 
+#         colour = comparison, 
+#         linetype = comparison,
+#         group = line_group), 
+#     alpha = 0.6
+#   ) +
+#   geom_linerange(
+#     aes(ymin = conf.low, ymax = conf.high),
+#     position = position_dodge(width = position_dodge_val)
+#   ) +
+#   geom_point(
+#     aes(y = estimate),
+#     position = position_dodge(width = position_dodge_val)
+#   ) +
+#   facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") +
+#   scale_y_log10(
+#     name = y_lab_adj,
+#     breaks = primary_vax_y1[["breaks"]],
+#     limits = primary_vax_y1[["limits"]],
+#     oob = scales::oob_keep,
+#     sec.axis = sec_axis(
+#       ~(1-.),
+#       name=y_lab_adj_2,
+#       breaks = primary_vax_y2[["breaks"]],
+#       labels = function(x){formatpercent100(x, 1)}
+#     )
+#   ) +
+#   labs(
+#     x = x_lab
+#   ) +
+#   scale_fill_discrete(guide = "none") +
+#   scale_shape_manual(values = comparison_shapes[1:2], name = NULL) +
+#   scale_color_manual(values = palette_adj[1:2], name = NULL) +
+#   scale_linetype_manual(values = comparison_linetypes[1:2], name = NULL) +
+#   guides(shape = guide_legend(
+#     title = NULL, 
+#     override.aes = list(colour = palette_adj[1:2], fill = comparison_shapes[1:2])
+#   )) +
+#   theme_bw() +
+#   theme(
+#     panel.border = element_blank(),
+#     axis.line.y = element_line(colour = "black"),
+#     
+#     axis.text = element_text(size=10),
+#     
+#     axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#     axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#     axis.text.x = element_text(size=8),
+#     axis.text.y = element_text(size=8),
+#     
+#     panel.grid.minor.x = element_blank(),
+#     panel.grid.minor.y = element_blank(),
+#     strip.background = element_blank(),
+#     strip.placement = "outside",
+#     strip.text.y.left = element_text(angle = 0),
+#     strip.text = element_text(size=8),
+#     
+#     panel.spacing = unit(0.8, "lines"),
+#     
+#     plot.title = element_text(hjust = 0),
+#     plot.title.position = "plot",
+#     plot.caption.position = "plot",
+#     plot.caption = element_text(hjust = 0, face= "italic"),
+#     
+#     legend.position = c(0.88, 0.14),
+#     # big margins to cover up grid lines
+#     legend.margin = margin(t = 30, r = 20, b = 30, l = 10),
+#     legend.key.width = unit(2, 'cm'),
+#     # legend.position = "bottom",
+#     legend.text = element_text(size=10)
+#   ) 
+# 
+# # save the plot
+# ggsave(plot_vax,
+#        filename = here::here(release_folder, glue("hr_vax.png")),
+#        width=page_height, height=page_width, units="cm")
+# 
+# 
+# ggsave(plot_vax + theme(plot.margin = margin(2, 2, 2, 2, "cm")),
+#        filename = here::here(release_folder, glue("hr_vax.pdf")),
+#        width=page_height, height=page_width, units="cm")
+# 
+# ################################################################################
+# # brand comparison
+# plot_brand <- plot_data %>%
+#   filter(
+#     sex == "Both",
+#     ageband == "all",
+#     comparison == "both",
+#     outcome_unlabelled != "anytest",
+#     as.integer(model) == 2
+#   ) %>%
+#   droplevels() %>%
+#   # complete(subgroup, comparison, outcome, k_labelled) %>%
+#   ggplot(aes(
+#     x = reorder(k_labelled_dates, order)
+#   )) +
+#   geom_hline(aes(yintercept=1), colour='grey') +
+#   geom_line(
+#     aes(y = line, 
+#         group = line_group), 
+#     linetype = comparison_linetypes[3],
+#     colour=palette_adj[3],
+#     alpha = 0.6
+#   ) +
+#   geom_linerange(
+#     aes(ymin = conf.low, ymax = conf.high), 
+#     position = position_dodge(width = position_dodge_val),
+#     color = palette_adj[3],
+#     fill = palette_adj[3]
+#   ) +
+#   geom_point(
+#     aes(y = estimate),
+#     position = position_dodge(width = position_dodge_val),
+#     color = palette_adj[3],
+#     fill = palette_adj[3],
+#     shape = comparison_shapes[3]
+#   ) +
+#   facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") +
+#   scale_y_log10(
+#     name = y_lab_adj,
+#     breaks = primary_brand_y1[["breaks"]],
+#     limits = primary_brand_y1[["limits"]],
+#     oob = scales::oob_keep) +
+#   guides(
+#     color = guide_legend(override.aes = list(linetype = 0))
+#   ) +
+#   labs(
+#     x = x_lab
+#   ) +
+#   theme_bw() +
+#   theme(
+#     panel.border = element_blank(),
+#     axis.line.y = element_line(colour = "black"),
+#     
+#     axis.text = element_text(size=10),
+#     
+#     axis.title.x = element_text(size = 10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#     axis.title.y = element_text(size = 10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#     axis.text.x = element_text(size=8),
+#     axis.text.y = element_text(size=8),
+#     
+#     panel.grid.minor.x = element_blank(),
+#     panel.grid.minor.y = element_blank(),
+#     strip.background = element_blank(),
+#     strip.placement = "outside",
+#     strip.text.y.left = element_text(angle = 0),
+#     strip.text = element_text(size=8),
+#     
+#     panel.spacing = unit(0.8, "lines"),
+#     
+#     plot.title = element_text(hjust = 0),
+#     plot.title.position = "plot",
+#     plot.caption.position = "plot",
+#     plot.caption = element_text(hjust = 0, face= "italic")
+#     
+#   ) 
+# ggsave(plot_brand,
+#        filename = here::here(release_folder, glue("hr_brand.png")),
+#        width=page_height, height=page_width, units="cm")
+# ggsave(plot_brand + theme(plot.margin = margin(2, 2, 2, 2, "cm")),
+#        filename = here::here(release_folder, glue("hr_brand.pdf")),
+#        width=page_height, height=page_width, units="cm")
+# 
+# ################################################################################
+# # anytest
+# # vaccine vs unvaccinated
+# plot_vax_anytest <- plot_data %>%
+#   filter(
+#     sex == "Both",
+#     ageband == "all",
+#     comparison != "both",
+#     outcome_unlabelled == "anytest",
+#     as.integer(model) == 2
+#   ) %>%
+#   ggplot(aes(
+#     x = reorder(k_labelled_dates, order), 
+#     y = estimate, 
+#     colour = comparison, 
+#     shape = comparison,
+#     fill = comparison)) +
+#   geom_hline(aes(yintercept=1), colour='grey') +
+#   geom_line(
+#     aes(y = line, 
+#         colour=comparison, 
+#         linetype = comparison,
+#         group = line_group), 
+#     alpha = 0.6
+#   ) +
+#   geom_linerange(
+#     aes(ymin = conf.low, ymax = conf.high),
+#     position = position_dodge(width = position_dodge_val)) +
+#   geom_point(
+#     position = position_dodge(width = position_dodge_val)
+#   ) +
+#   facet_wrap( ~ subgroup, scales = "free") +
+#   scale_y_log10(
+#     name = y_lab_adj,
+#     breaks = anytest_y1[["breaks"]],
+#     limits = anytest_y1[["limits"]],
+#     oob = scales::oob_keep
+#   ) +
+#   labs(
+#     x = x_lab,
+#     title = "Any SARS-CoV-2 test"
+#   ) +
+#   scale_shape_manual(values = comparison_shapes[1:2], name = NULL) +
+#   scale_color_manual(values = palette_adj[1:2], name = NULL) +
+#   scale_fill_discrete(guide = "none") +
+#   scale_linetype_manual(values = comparison_linetypes[1:2], name = NULL) +
+#   guides(shape = guide_legend(
+#     title = NULL, 
+#     override.aes = list(colour = palette_adj[1:2], fill = comparison_shapes[1:2])
+#   )) +
+#   theme_bw() +
+#   theme(
+#     panel.border = element_blank(),
+#     axis.line.y = element_line(colour = "black"),
+#     
+#     axis.text = element_text(size=10),
+#     
+#     axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#     axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#     axis.text.x = element_text(size=8),
+#     axis.text.y = element_text(size=8),
+#     
+#     panel.grid.minor.x = element_blank(),
+#     panel.grid.minor.y = element_blank(),
+#     strip.background = element_blank(),
+#     strip.placement = "outside",
+#     strip.text.y.left = element_text(angle = 0),
+#     strip.text = element_text(size=8),
+#     
+#     panel.spacing = unit(0.8, "lines"),
+#     
+#     plot.title = element_text(hjust = 0, size=10),
+#     plot.title.position = "plot",
+#     plot.caption.position = "plot",
+#     plot.caption = element_text(hjust = 0, face= "italic"),
+#     
+#     legend.position = "bottom",
+#     legend.key.width = unit(2, 'cm'),
+#     legend.text = element_text(size=10)
+#   ) 
+# 
+# # save the plot
+# ggsave(plot_vax_anytest,
+#        filename = here::here(release_folder, glue("hr_vax_anytest.png")),
+#        width=page_width, height=12, units="cm")
+# 
+# ################################################################################
+# # anytest
+# # brand comparison
+# plot_brand_anytest <- plot_data %>%
+#   filter(
+#     sex == "Both",
+#     ageband == "all",
+#     comparison == "both",
+#     outcome_unlabelled == "anytest",
+#     as.integer(model) == 2
+#   ) %>%
+#   droplevels() %>%
+#   ggplot(aes(
+#     x = reorder(k_labelled, order), 
+#     y = estimate)) +
+#   geom_hline(aes(yintercept=1), colour='grey') +
+#   geom_line(
+#     aes(y = line, 
+#         group = line_group), 
+#     colour = palette_adj[3],
+#     linetype=comparison_linetypes[3], 
+#     alpha = 0.6
+#   ) +
+#   geom_linerange(
+#     aes(ymin = conf.low, ymax = conf.high), 
+#     position = position_dodge(width = position_dodge_val),
+#     color = palette_adj[3],
+#     fill = palette_adj[3]
+#   ) +
+#   geom_point(
+#     position = position_dodge(width = position_dodge_val),
+#     color = palette_adj[3],
+#     fill = palette_adj[3],
+#     shape = comparison_shapes[3]
+#   ) +
+#   facet_wrap( ~ subgroup, scales = "free", ncol=2) +
+#   scale_y_log10(
+#     name = y_lab_adj,
+#     breaks = anytest_y1[["breaks"]],
+#     limits = anytest_y1[["limits"]],
+#     oob = scales::oob_keep
+#   ) +
+#   labs(
+#     x = x_lab,
+#     title = "Any SARS-CoV-2 test"
+#   ) +
+#   theme_bw() +
+#   theme(
+#     panel.border = element_blank(),
+#     axis.line.y = element_line(colour = "black"),
+#     
+#     axis.text = element_text(size=10),
+#     
+#     axis.title.x = element_text(size = 10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#     axis.title.y = element_text(size = 10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#     axis.text.x = element_text(size=8),
+#     axis.text.y = element_text(size=8),
+#     
+#     panel.grid.minor.x = element_blank(),
+#     panel.grid.minor.y = element_blank(),
+#     strip.background = element_blank(),
+#     strip.placement = "outside",
+#     strip.text.y.left = element_text(angle = 0),
+#     strip.text = element_text(size=8),
+#     
+#     panel.spacing = unit(0.8, "lines"),
+#     
+#     plot.title = element_text(hjust = 0, size=10),
+#     plot.title.position = "plot",
+#     plot.caption.position = "plot",
+#     plot.caption = element_text(hjust = 0, face= "italic")
+#   ) 
+# ggsave(plot_brand_anytest,
+#        filename = here::here(release_folder, glue("hr_brand_anytest.png")),
+#        width=page_width, height=12, units="cm")
+# 
+# ################################################################################
+# # unadjusted and adjusted estimates for each comparison
+# 
+# plot_unadj_adj <- function(plot_comparison) {
+#   
+#   i <- which(comparisons == plot_comparison)
+#   palette <- unname(c(palette_unadj[i], palette_adj[i]))
+#   names(palette) <- levels(plot_data$model)
+#   point_shapes <- unname(comparison_shapes[i])
+#   
+#   # vaccine vs unvaccinated
+#   plot_vax_0 <- plot_data %>%
+#     filter(
+#       sex == "Both",
+#       ageband == "all",
+#       comparison == plot_comparison,
+#       outcome_unlabelled != "anytest"
+#     ) %>%
+#     ggplot(aes(
+#       x = reorder(k_labelled_dates, order), 
+#       y = estimate, 
+#       colour = model, 
+#       fill = model)) +
+#     geom_hline(aes(yintercept=1), colour='grey') +
+#     geom_linerange(
+#       aes(ymin = conf.low, ymax = conf.high),
+#       position = position_dodge(width = position_dodge_val)) +
+#     geom_point(
+#       position = position_dodge(width = position_dodge_val),
+#       shape = point_shapes
+#     ) +
+#     facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") 
+#   
+#   if (plot_comparison == "both") {
+#     
+#     plot_vax_1 <- plot_vax_0  +
+#       scale_y_log10(
+#         name = "Hazard ratio (HR)",
+#         breaks = c(0.02, 0.05, 0.2, 0.5, 1, 2),
+#         limits = c(0.02, 2),
+#         oob = scales::oob_keep
+#       )
+#     
+#   } else {
+#     
+#     plot_vax_1 <- plot_vax_0  +
+#       scale_y_log10(
+#         name = y_lab,
+#         breaks = primary_vax_y1[["breaks"]],
+#         limits = primary_vax_y1[["limits"]],
+#         oob = scales::oob_keep,
+#         sec.axis = sec_axis(
+#           ~(1-.),
+#           name=y_lab_2,
+#           breaks = c(0,0.5,0.8, 0.95, 0.98),
+#           labels = function(x){formatpercent100(x, 1)}
+#         )
+#       )
+#     
+#   }
+#   
+#   plot_vax_2 <- plot_vax_1 +
+#     labs(
+#       x = x_lab
+#     ) +
+#     scale_colour_manual(name = NULL,
+#                         values = palette) +
+#     scale_fill_manual(guide = "none",
+#                       values = palette) +
+#     theme_bw() +
+#     theme(
+#       panel.border = element_blank(),
+#       axis.line.y = element_line(colour = "black"),
+#       
+#       axis.text = element_text(size=10),
+#       
+#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#       axis.text.x = element_text(size=8),
+#       axis.text.y = element_text(size=8),
+#       
+#       panel.grid.minor.x = element_blank(),
+#       panel.grid.minor.y = element_blank(),
+#       strip.background = element_blank(),
+#       strip.placement = "outside",
+#       strip.text.y.left = element_text(angle = 0),
+#       strip.text = element_text(size=8),
+#       
+#       panel.spacing = unit(0.8, "lines"),
+#       
+#       plot.title = element_text(hjust = 0),
+#       plot.title.position = "plot",
+#       plot.caption.position = "plot",
+#       plot.caption = element_text(hjust = 0, face= "italic"),
+#       
+#       legend.position = "bottom",
+#       legend.text = element_text(size=8)
+#     ) 
+#   
+#   # save the plot
+#   ggsave(plot_vax_2,
+#          filename = here::here(release_folder, glue("hr_vax_{plot_comparison}_unadj.png")),
+#          width=page_height, height=page_width, units="cm")
+#   
+#   # plot comparison
+#   plot_vax_anytest <- plot_data %>%
+#     filter(
+#       sex == "Both",
+#       ageband == "all",
+#       comparison == plot_comparison,
+#       outcome_unlabelled == "anytest"
+#     ) %>%
+#     ggplot(aes(
+#       x = reorder(k_labelled_dates, order), 
+#       y = estimate, 
+#       colour = model, 
+#       fill = model)) +
+#     geom_hline(aes(yintercept=1), colour='grey') +
+#     geom_linerange(
+#       aes(ymin = conf.low, ymax = conf.high),
+#       position = position_dodge(width = position_dodge_val)) +
+#     geom_point(
+#       position = position_dodge(width = position_dodge_val),
+#       shape = point_shapes
+#     ) +
+#     facet_wrap( ~ subgroup, scales = "free", nrow=2) +
+#     scale_y_log10(
+#       name = y_lab,
+#       breaks = anytest_y1[["breaks"]],
+#       limits = anytest_y1[["limits"]],
+#       oob = scales::oob_keep
+#     ) +
+#     labs(
+#       x = x_lab,
+#       title = "Any SARS-CoV-2 test"
+#     ) +
+#     scale_colour_manual(name = NULL,
+#                         values = palette) +
+#     scale_fill_manual(guide = "none",
+#                       values = palette) +
+#     guides(colour=guide_legend(nrow=2)) +
+#     theme_bw() +
+#     theme(
+#       panel.border = element_blank(),
+#       axis.line.y = element_line(colour = "black"),
+#       
+#       axis.text = element_text(size=10),
+#       
+#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#       axis.text.x = element_text(size=8),
+#       axis.text.y = element_text(size=8),
+#       
+#       panel.grid.minor.x = element_blank(),
+#       panel.grid.minor.y = element_blank(),
+#       strip.background = element_blank(),
+#       strip.placement = "outside",
+#       strip.text.y.left = element_text(angle = 0),
+#       strip.text = element_text(size=8),
+#       
+#       panel.spacing = unit(0.8, "lines"),
+#       
+#       plot.title = element_text(hjust = 0, size=10),
+#       plot.title.position = "plot",
+#       plot.caption.position = "plot",
+#       plot.caption = element_text(hjust = 0, face= "italic"),
+#       
+#       legend.position = "bottom",
+#       legend.text = element_text(size=10)
+#     ) 
+#   
+#   # save the plot
+#   ggsave(plot_vax_anytest,
+#          filename = here::here(release_folder, glue("hr_vax_anytest_{plot_comparison}_unadj.png")),
+#          width=page_width, height=12, units="cm")
+#   
+# }
+# 
+# for (i in c("BNT162b2", "ChAdOx1", "both")) {
+#   plot_unadj_adj(i)
+# }
+# 
+# ################################################################################
+# # sex stratified results for each comparison
+# 
+# plot_strata <- function(plot_comparison, strata) {
+#   
+#   plot_data_0 <- plot_data %>%
+#     filter(
+#       comparison == plot_comparison,
+#       as.integer(model) == 2
+#     )
+#   
+#   leg_pos <- "bottom"
+#   if (strata == "sex") {
+#     strata_labs <- c("Female", "Male")
+#     plot_data_1 <- plot_data_0 %>%
+#       filter(
+#         sex != "Both"
+#       ) %>%
+#       rename(strata_var = !! strata)
+#     leg_rows <- 1
+#     strata_page_width <- 27
+#     strata_page_height <- 16
+#   } else if( strata == "ageband") {
+#     strata_labs <- c("65-74 years", "75+ years")
+#     plot_data_1 <- plot_data_0 %>%
+#       filter(
+#         ageband != "all"
+#       ) %>%
+#       rename(strata_var = !! strata)
+#     leg_rows <- 2
+#     strata_page_height <- 16
+#     strata_page_width <- 14
+#   } else {
+#     stop("strata must be sex or ageband")
+#   }
+#   
+#   i <- which(comparisons == plot_comparison)
+#   palette <- palette_adj[i]
+#   point_shapes <- unname(c(comparison_shapes[i], hollow_shapes[i]))
+#   names(point_shapes) <- strata_labs
+#   fill_shapes <- c(palette, "white")
+#   names(fill_shapes) <- strata_labs
+#   line_types <- c("dashed", "dotted")
+#   names(line_types) <- strata_labs
+#   
+#   # vaccine vs unvaccinated
+#   plot_vax_0 <- plot_data_1 %>%
+#     filter(
+#       outcome_unlabelled != "anytest"
+#     ) %>%
+#     ggplot(aes(
+#       x = reorder(k_labelled_dates, order), 
+#       y = estimate,
+#       colour = comparison,
+#       fill = strata_var,
+#       shape = strata_var)) +
+#     geom_hline(aes(yintercept=1), colour='grey') +
+#     geom_line(
+#       aes(y = line, 
+#           linetype = strata_var,
+#           group = line_group), 
+#       colour = palette,
+#       alpha = 0.6
+#     ) +
+#     geom_linerange(
+#       aes(ymin = conf.low, ymax = conf.high),
+#       position = position_dodge(width = position_dodge_val)) +
+#     geom_point(
+#       position = position_dodge(width = position_dodge_val)
+#     ) +
+#     facet_grid(outcome ~ subgroup, switch = "y", scales = "free", space = "free_x") 
+#   
+#   if (plot_comparison == "both") {
+#     
+#     plot_vax_1 <- plot_vax_0  +
+#       scale_y_log10(
+#         name = y_lab_adj,
+#         breaks = c(0.02, 0.05, 0.2, 0.5, 1, 2),
+#         limits = c(0.02, 2),
+#         oob = scales::oob_keep
+#       )
+#     
+#   } else {
+#     
+#     plot_vax_1 <- plot_vax_0  +
+#       scale_y_log10(
+#         name = y_lab_adj,
+#         breaks = primary_vax_y1[["breaks"]],
+#         limits = primary_vax_y1[["limits"]],
+#         oob = scales::oob_keep,
+#         sec.axis = sec_axis(
+#           ~(1-.),
+#           name=y_lab_adj_2,
+#           breaks = c(0,0.5,0.8, 0.95, 0.98),
+#           labels = function(x){formatpercent100(x, 1)}
+#         )
+#       )
+#     
+#   }
+#   
+#   plot_vax_2 <- plot_vax_1 +
+#     labs(
+#       x = x_lab
+#     ) +
+#     scale_linetype_manual(
+#       name = NULL,
+#       values = line_types
+#     ) +
+#     scale_shape_manual(
+#       values = point_shapes
+#     ) +
+#     scale_colour_manual(guide = "none",
+#                         values = palette) +
+#     scale_fill_manual(guide = "none",
+#                       values = fill_shapes) +
+#     guides(
+#       shape = guide_legend(
+#         title = NULL, 
+#         override.aes = list(colour = palette, fill = fill_shapes),
+#         nrow=leg_rows, byrow=TRUE
+#       )
+#     ) +
+#     theme_bw() +
+#     theme(
+#       panel.border = element_blank(),
+#       axis.line.y = element_line(colour = "black"),
+#       
+#       axis.text = element_text(size=10),
+#       
+#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#       axis.text.x = element_text(size=8),
+#       axis.text.y = element_text(size=8),
+#       
+#       panel.grid.minor.x = element_blank(),
+#       panel.grid.minor.y = element_blank(),
+#       strip.background = element_blank(),
+#       strip.placement = "outside",
+#       strip.text.y.left = element_text(angle = 0),
+#       strip.text = element_text(size=8),
+#       
+#       panel.spacing = unit(0.8, "lines"),
+#       
+#       plot.title = element_text(hjust = 0),
+#       plot.title.position = "plot",
+#       plot.caption.position = "plot",
+#       plot.caption = element_text(hjust = 0, face= "italic"),
+#       
+#       legend.position = leg_pos,
+#       legend.key.width = unit(2, 'cm'),
+#       legend.text = element_text(size=8)
+#     ) 
+#   
+#   # save the plot
+#   ggsave(plot_vax_2,
+#          filename = here::here(release_folder, glue("hr_vax_{plot_comparison}_{strata}.png")),
+#          width=strata_page_width, height=strata_page_height, units="cm")
+#   
+#   
+#   strata_page_width <- 16
+#   strata_page_height <- 12
+#   if (strata=="ageband") {
+#     strata_page_height <- 8
+#     leg_pos <- "right"
+#   }
+#   # plot comparison anytest
+#   plot_vax_anytest <- plot_data_1 %>%
+#     filter(
+#       outcome_unlabelled == "anytest"
+#     ) %>%
+#     ggplot(aes(
+#       x = reorder(k_labelled_dates, order), 
+#       y = estimate, 
+#       shape = strata_var,
+#       colour = comparison, 
+#       fill = strata_var)) +
+#     geom_hline(aes(yintercept=1), colour='grey') +
+#     geom_line(
+#       aes(y = line, 
+#           linetype = strata_var,
+#           group = line_group), 
+#       colour = palette,
+#       alpha = 0.6
+#     ) +
+#     geom_linerange(
+#       aes(ymin = conf.low, ymax = conf.high),
+#       position = position_dodge(width = position_dodge_val)) +
+#     geom_point(
+#       position = position_dodge(width = position_dodge_val)
+#     ) +
+#     facet_wrap( ~ subgroup, scales = "free", nrow=2) +
+#     scale_y_log10(
+#       name = y_lab_adj,
+#       breaks = anytest_y1[["breaks"]],
+#       limits = anytest_y1[["limits"]],
+#       oob = scales::oob_keep
+#     ) +
+#     labs(
+#       x = x_lab,
+#       title = "Any SARS-CoV-2 test"
+#     ) +
+#     scale_linetype_manual(
+#       name = NULL,
+#       values = line_types
+#     ) +
+#     scale_shape_manual(
+#       values = point_shapes
+#     ) +
+#     scale_colour_manual(guide = "none",
+#                         values = palette) +
+#     scale_fill_manual(guide = "none",
+#                       values = fill_shapes) +
+#     guides(
+#       shape = guide_legend(
+#         title = NULL, 
+#         override.aes = list(colour = palette, fill = fill_shapes),
+#         nrow=leg_rows, byrow=TRUE)
+#     ) +
+#     theme_bw() +
+#     theme(
+#       panel.border = element_blank(),
+#       axis.line.y = element_line(colour = "black"),
+#       
+#       axis.text = element_text(size=10),
+#       
+#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#       axis.text.x = element_text(size=8),
+#       axis.text.y = element_text(size=8),
+#       
+#       panel.grid.minor.x = element_blank(),
+#       panel.grid.minor.y = element_blank(),
+#       strip.background = element_blank(),
+#       strip.placement = "outside",
+#       strip.text.y.left = element_text(angle = 0),
+#       strip.text = element_text(size=8),
+#       
+#       panel.spacing = unit(0.8, "lines"),
+#       
+#       plot.title = element_text(hjust = 0, size=10),
+#       plot.title.position = "plot",
+#       plot.caption.position = "plot",
+#       plot.caption = element_text(hjust = 0, face= "italic"),
+#       
+#       legend.position = leg_pos,
+#       legend.key.width = unit(2, 'cm'),
+#       legend.text = element_text(size=10)
+#     ) 
+#   
+#   # save the plot
+#   ggsave(plot_vax_anytest,
+#          filename = here::here(release_folder, glue("hr_vax_anytest_{plot_comparison}_{strata}.png")),
+#          width=strata_page_width, height=strata_page_height, units="cm")
+#   
+# }
+# 
+# for (i in c("BNT162b2", "ChAdOx1", "both")) {
+#   plot_strata(i, strata = "sex")
+#   plot_strata(i, strata = "ageband")
+# }
 
