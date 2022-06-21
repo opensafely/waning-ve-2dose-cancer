@@ -198,7 +198,13 @@ for (kk in 1:K) {
           add_column(
             model = i,
             .before=1
-          )
+          ) %>%
+          mutate(across(c(term, label),
+                        ~if_else(
+                          variable=="k" & term != "k0",
+                          str_replace(.x, "\\d", as.character(kk)),
+                          .x
+                        )))
         
       } else {
         
