@@ -137,6 +137,7 @@ make_table1 <- function(data, include_prior_infection = TRUE) {
   
   # get the name of the data object to label the analysis
   data_name <- str_remove(deparse(substitute(data)), "data_")
+  print(data_name)
   
   cat(glue("---- {data_name} ----\n"))
   
@@ -306,14 +307,18 @@ make_table1 <- function(data, include_prior_infection = TRUE) {
         )
   }
   
-  out <- out %>% select(
-    Variable, Characteristic, ends_with(as.character(seq_along(data)))
+  out <- out %>% 
+    select(
+      Variable, Characteristic,
+      ends_with(as.character(which(subgroups %in% table1_subgroups)))
     )
   
   cat("---- save table1.csv ----\n")
   # save table1_tidy
-  readr::write_csv(out,
-                   here::here("output", "report", "tables", glue("table1_{data_name}_{include_prior_infection}_REDACTED.csv")))
+  readr::write_csv(
+    out,
+    here::here("output", "report", "tables", glue("table1_{data_name}_{include_prior_infection}_REDACTED.csv"))
+    )
   
   cat("---- save table1.html ----\n")
   out %>%
