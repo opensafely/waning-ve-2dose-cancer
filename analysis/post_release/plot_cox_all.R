@@ -330,7 +330,7 @@ plot_models <- function(group, include_prior_infection) {
     
 }
 
-for (x in 1:8) {
+for (x in 1:4) {
   for (y in c(TRUE, FALSE)) {
     try(plot_models(group=x, include_prior_infection = y))
   }
