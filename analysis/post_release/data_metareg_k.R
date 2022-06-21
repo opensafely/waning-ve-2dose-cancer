@@ -6,7 +6,7 @@ if (!exists("release_folder")) release_folder <- here::here("output", "release_o
 # read subgroups
 subgroups <- readr::read_rds(
   here::here("analysis", "lib", "subgroups.rds"))
-subgroup_labels <- seq_along(subgroups)
+
 
 ################################################################################
 
@@ -16,16 +16,8 @@ metareg_results <- metareg_results_0 %>%
   rename(subgroup = stratum, comparison = vaccine) %>%
   mutate(across(subgroup,
                 factor,
-                levels = 1:4,
+                levels = seq_along(subgroups),
                 labels = subgroups)) %>%
-  mutate(across(sex,
-                factor,
-                levels = 1:3,
-                labels = c("Both", "Female", "Male"))) %>%
-  mutate(across(ageband,
-                factor,
-                levels = 1:3,
-                labels = c("all", "65-74 years", "75+ years"))) %>%
   mutate(across(comparison, 
                 factor,
                 levels = 1:3,
@@ -49,17 +41,17 @@ metareg_results <- metareg_results_0 %>%
     ) 
 
 metareg_results_k <- metareg_results %>%
-  distinct(subgroup, sex, ageband, comparison, outcome) %>%
+  distinct(subgroup, comparison, outcome) %>%
   mutate(k=factor(1, levels=1:6)) %>%
-  complete(subgroup, sex, ageband, comparison, outcome, k) %>%
+  complete(subgroup, comparison, outcome, k) %>%
   left_join(
     metareg_results,
-    by = c("subgroup", "sex", "ageband", "comparison", "outcome")
+    by = c("subgroup", "comparison", "outcome")
   ) %>%
   mutate(across(k, ~as.integer(as.character(.x)))) %>%
   mutate(
     line = loghr1 + (k-1)*logrhr#, # use k-1 because intercept at k=-1
-    # CI for slope not valid as don't know covariance between intercept and slope
+    # CI for slope not valid as need covariance between intercept and slope
     # line_lower = loghr1_lower + (k-1)*logrhr_lower,
     # line_higher = loghr1_higher + (k-1)*logrhr_higher
   ) %>%
@@ -71,7 +63,7 @@ readr::write_rds(
 )
 
 metareg_results_rhr <- metareg_results %>%
-  distinct(outcome, subgroup, sex, ageband, comparison, logrhr, logrhr_lower, logrhr_higher) %>%
+  distinct(outcome, subgroup, comparison, logrhr, logrhr_lower, logrhr_higher) %>%
   mutate(across(starts_with("log"), exp)) %>%
   rename_with(~str_remove(.x, "log"))
 
