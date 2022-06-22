@@ -601,6 +601,42 @@ actions_list <- splice(
     )
   ),
   
+  comment("Main analysis and cancer type with prior infection removed"),
+  
+  splice(
+    unlist(
+      lapply(
+        comparisons,
+        function(x)
+          splice(
+            unlist(
+              lapply(
+                c(1,2,3,4), #subgroup indices
+                function(y)
+                  splice(
+                    unlist(
+                      lapply(
+                        unname(outcomes),
+                        function(z)
+                          apply_model_fun(
+                            comparison = x,
+                            subgroup_index = y,
+                            outcome = z,
+                            include_prior_infection = FALSE
+                          )
+                      ),
+                      recursive = FALSE
+                    )
+                  )
+              ),
+              recursive = FALSE
+            )
+          )
+      ),
+      recursive = FALSE
+    )
+  ),
+  
   comment("combine all estimates for release"),
   action(
     name = glue("combine_estimates"),
@@ -615,10 +651,18 @@ actions_list <- splice(
                 lapply(
                   c(1,2,3,4), #subgroup indices
                   function(y)
-                    lapply(
-                      unname(outcomes),
-                      function(z)
-                        glue("apply_model_cox_{x}_{y}_TRUE_{z}")
+                    splice(
+                      unlist(
+                        lapply(
+                          unname(outcomes),
+                          function(z)
+                            lapply(
+                              c(FALSE, TRUE),
+                              function(p)
+                                glue("apply_model_cox_{x}_{y}_{p}_{z}")
+                            )
+                        ), 
+                        recursive = FALSE)
                     )
                 ),
                 recursive = FALSE
