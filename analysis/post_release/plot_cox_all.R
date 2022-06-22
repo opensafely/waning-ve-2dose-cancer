@@ -12,9 +12,9 @@ library(glue)
 args <- commandArgs(trailingOnly=TRUE)
 
 if(length(args)==0){
-  metareg=FALSE
-} else{
   metareg=TRUE
+} else{
+  metareg=FALSE
 }
 
 ################################################################################
