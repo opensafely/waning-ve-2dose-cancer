@@ -636,6 +636,7 @@ actions_list <- splice(
   comment("plot all three models for each subgroup"),
   action(
     name = "plot_all",
+    arguments = "x",
     run = "r:latest analysis/post_release/plot_cox_all.R",
     needs = list("combine_estimates"),
     moderately_sensitive = list(

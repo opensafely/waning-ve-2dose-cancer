@@ -8,6 +8,15 @@ library(RColorBrewer)
 library(lubridate)
 library(glue)
 
+## import command-line arguments ----
+args <- commandArgs(trailingOnly=TRUE)
+
+if(length(args)==0){
+  metareg=FALSE
+} else{
+  metareg=TRUE
+}
+
 ################################################################################
 if (!exists("release_folder")) {
   release_folder <- here::here("output", "release_objects")
@@ -44,11 +53,13 @@ comparisons_new <- c("BNT162b2", "ChAdOx1", "Combined")
 # read estimates data
 estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
 
-# read metareg data
-metareg_results_k <- readr::read_rds(
-  file.path(release_folder, "metareg_results_k.rds")) %>%
-  select(subgroup, comparison, outcome, k, starts_with("line")) %>%
-  mutate(model="adjusted") 
+if (metareg) {
+  # read metareg data
+  metareg_results_k <- readr::read_rds(
+    file.path(release_folder, "metareg_results_k.rds")) %>%
+    select(subgroup, comparison, outcome, k, starts_with("line")) %>%
+    mutate(model="adjusted") 
+}
 
 ################################################################################
 # gg plot pallete
@@ -121,10 +132,6 @@ plot_data <- estimates_all %>%
                 levels = subgroup_labels,
                 labels = subgroups
   )) %>%
-  left_join(
-    metareg_results_k, 
-    by = c("subgroup", "comparison", "outcome", "model", "k")
-  ) %>%
   mutate(across(model,
                 factor,
                 levels = c("unadjusted", "part_adjusted", "max_adjusted"),
@@ -147,24 +154,33 @@ plot_data <- estimates_all %>%
                 factor,
                 levels = comparisons_old,
                 labels = comparisons_new
-                )) %>%
-  mutate(line_group = str_c(subgroup, comparison, outcome,  model, sep = "; ")) %>%
-  # only plot line within range of estimates
-  mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
-  group_by(line_group) %>%
-  mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
-  filter(keep) %>%
-  mutate(
-    min_k = min(k_nonmiss, na.rm = TRUE),
-    max_k = max(k_nonmiss, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  mutate(across(line,
-                ~ if_else(min_k <= k & k <= max_k,
-                          .x,
-                          NA_real_)))
+                )) 
 
 
+if (metareg) {
+  plot_data <- plot_data %>%
+    left_join(
+      metareg_results_k, 
+      by = c("subgroup", "comparison", "outcome", "model", "k")
+    ) %>%
+    mutate(line_group = str_c(subgroup, comparison, outcome,  model, sep = "; ")) %>%
+    # only plot line within range of estimates
+    mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
+    group_by(line_group) %>%
+    mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
+    filter(keep) %>%
+    mutate(
+      min_k = min(k_nonmiss, na.rm = TRUE),
+      max_k = max(k_nonmiss, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate(across(line,
+                  ~ if_else(min_k <= k & k <= max_k,
+                            .x,
+                            NA_real_)))
+}
+
+#################################################################################
 # spacing of points on plot
 position_dodge_val <- 0.6
 
@@ -240,15 +256,23 @@ plot_models <- function(group, include_prior_infection) {
         fill = model
       )
     ) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_line(
-      aes(y = line, 
-          colour = model, 
-          linetype = subgroup,
-          group = line_group
-          )#, 
-      # alpha = 0.6
-    ) +
+    geom_hline(aes(yintercept=1), colour='grey')
+  
+  if (metareg) {
+    p <- p +
+      geom_line(
+        aes(y = line, 
+            colour = model, 
+            linetype = subgroup,
+            group = line_group
+        )#, 
+        # alpha = 0.6
+      ) +
+      scale_linetype_manual(values = linetype_subgroup, guide = "none") 
+      
+  }
+  
+   p <- p +
     geom_linerange(
       aes(ymin = conf.low, ymax = conf.high),
       position = position_dodge(width = position_dodge_val)
@@ -283,7 +307,6 @@ plot_models <- function(group, include_prior_infection) {
     ) +
     scale_color_manual(values = palette_model, name = NULL) +
     scale_fill_manual(values = palette_model, name = NULL) +
-    scale_linetype_manual(values = linetype_subgroup, guide = "none") +
     scale_shape_manual(values = shape_subgroup, name = NULL, guide = "none") +
     guides(colour = guide_legend(
       title = NULL,

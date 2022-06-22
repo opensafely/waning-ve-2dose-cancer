@@ -2089,7 +2089,7 @@ actions:
   ## plot all three models for each subgroup 
 
   plot_all:
-    run: r:latest analysis/post_release/plot_cox_all.R
+    run: r:latest analysis/post_release/plot_cox_all.R x
     needs:
     - combine_estimates
     outputs:
