@@ -127,15 +127,21 @@ if (metareg) {
   # read metareg data
   metareg_results_k <- readr::read_rds(
     file.path(release_folder, "metareg_results_k.rds")) %>%
-    select(subgroup, comparison, outcome, k, starts_with("line")) %>%
-    mutate(model="adjusted") 
+    mutate(across(model,
+                  ~case_when(
+                    .x==1 ~ "unadjusted",
+                    .x==2 ~ "part_adjusted",
+                    .x==3 ~ "max_adjusted",
+                    TRUE ~ NA_character_
+                  ))) %>%
+    select(model, subgroup, comparison, outcome, prior, k, starts_with("line")) 
   
   plot_data <- plot_data %>%
     left_join(
       metareg_results_k, 
-      by = c("subgroup", "comparison", "outcome", "model", "k")
+      by = c("model", "subgroup", "comparison", "outcome", "prior", "k")
     ) %>%
-    mutate(line_group = str_c(subgroup, comparison, outcome,  model, sep = "; ")) %>%
+    mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
     # only plot line within range of estimates
     mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
     group_by(line_group) %>%
@@ -254,19 +260,19 @@ plot_models <- function(group, include_prior_infection) {
     ) +
     geom_hline(aes(yintercept=1), colour='grey')
   
-  if (metareg) {
-    p <- p +
-      geom_line(
-        aes(y = line, 
-            colour = model, 
-            linetype = subgroup,
-            group = line_group
-        )#, 
-        # alpha = 0.6
-      ) +
-      scale_linetype_manual(values = linetype_subgroup, guide = "none") 
-      
-  }
+  # if (metareg) {
+  #   p <- p +
+  #     geom_line(
+  #       aes(y = line, 
+  #           colour = model, 
+  #           linetype = subgroup,
+  #           group = line_group
+  #       )#, 
+  #       # alpha = 0.6
+  #     ) +
+  #     scale_linetype_manual(values = linetype_subgroup, guide = "none") 
+  #     
+  # }
   
    p <- p +
     geom_linerange(
@@ -458,22 +464,14 @@ plot_subgroups <- function(group, include_prior_infection, model) {
         fill = fill_var
       )
     ) +
-    geom_hline(aes(yintercept=1), colour='grey')
-  
-  if (metareg) {
-    p <- p +
-      geom_line(
-        aes(y = line, 
-            colour = subgroup_4, 
-            linetype = subgroup_4,
-            group = line_group
-        )
-      ) +
-      scale_linetype_manual(values = palette_linetype, guide = "none") 
-    
-  }
-  
-  p <- p +
+    geom_hline(aes(yintercept=1), colour='grey') +
+    geom_line(
+      aes(y = line, 
+          colour = subgroup_4, 
+          linetype = subgroup_4,
+          group = line_group
+      )
+    ) +
     geom_linerange(
       aes(ymin = conf.low, ymax = conf.high),
       position = position_dodge(width = position_dodge_val)
@@ -506,9 +504,10 @@ plot_subgroups <- function(group, include_prior_infection, model) {
     labs(
       x = x_lab
     ) +
-    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
     scale_fill_manual(values = palette_fill, name = NULL) +
+    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
     scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
+    scale_linetype_manual(values = palette_linetype, guide = "none") +
     guides(
       fill = guide_legend(
         title = NULL,
@@ -520,7 +519,7 @@ plot_subgroups <- function(group, include_prior_infection, model) {
           fill = palette_fill
         )
       )
-      ) +
+    ) +
     theme_bw() +
     theme(
       panel.border = element_blank(),
@@ -726,17 +725,24 @@ summary_plot <- local({
         fill = fill_var
       )
     ) +
-    # covidadmitted
     geom_rect(
-      xmin = 3.7, xmax = 6.3,
+      xmin = 3.7, xmax = 7,
       aes(
-        ymax = lee_conf.low, ymin = lee_conf.high, 
-        colour = subgroup_4, fill = subgroup_4
-        ),
-      alpha = 0,
-      linetype = "dotted"
+        ymax = lee_conf.low, ymin = lee_conf.high,
+        fill = fill_var
+      ),
+      alpha = 0.2,
+      # colour = NA,
+      linetype = "solid"
     ) +
     geom_hline(aes(yintercept=1), colour='grey') +
+    geom_line(
+      aes(y = line, 
+          colour = subgroup_4, 
+          linetype = subgroup_4,
+          group = line_group
+      )
+    ) +
     geom_linerange(
       aes(ymin = conf.low, ymax = conf.high),
       position = position_dodge(width = position_dodge_val)
@@ -769,9 +775,10 @@ summary_plot <- local({
     labs(
       x = x_lab
     ) +
-    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
     scale_fill_manual(values = palette_fill, name = NULL) +
+    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
     scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
+    scale_linetype_manual(values = palette_linetype, guide = "none") +
     guides(
       fill = guide_legend(
         title = NULL,
