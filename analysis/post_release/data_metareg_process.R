@@ -24,11 +24,11 @@ data_metareg_0 <- estimates_all %>%
   mutate(
     subgroup = as.integer(str_extract(subgroup, "\\d"))
     ) %>%
-  select(subgroup, comparison, outcome, model, k = label, estimate, conf.low, conf.high) 
+  select(subgroup, comparison, outcome, model, prior, k = label, estimate, conf.low, conf.high) 
 
 # expand to all combinations
 data_metareg <- data_metareg_0 %>%
-  expand(subgroup, comparison, outcome, model, k) %>%
+  expand(subgroup, comparison, outcome, model, prior, k) %>%
   left_join(data_metareg_0) %>%
   # following lines because in a few instances seloghr=0, and this is breaking the metareg code 
   mutate(seloghr = (conf.high - conf.low)/(2*1.96)) %>%
