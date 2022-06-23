@@ -14,6 +14,7 @@ metareg_results_0 <- haven::read_dta(here::here(release_folder, "results.dta"))
 
 metareg_results <- metareg_results_0 %>%
   rename(subgroup = stratum, comparison = vaccine) %>%
+  mutate(across(prior, ~as.logical(.x-1))) %>%
   mutate(across(subgroup,
                 factor,
                 levels = seq_along(subgroups),
@@ -41,12 +42,12 @@ metareg_results <- metareg_results_0 %>%
     ) 
 
 metareg_results_k <- metareg_results %>%
-  distinct(subgroup, comparison, outcome) %>%
+  distinct(model, subgroup, comparison, outcome, prior) %>%
   mutate(k=factor(1, levels=1:6)) %>%
-  complete(subgroup, comparison, outcome, k) %>%
+  complete(model, subgroup, comparison, outcome, prior, k) %>%
   left_join(
     metareg_results,
-    by = c("subgroup", "comparison", "outcome")
+    by = c("model", "subgroup", "comparison", "outcome", "prior")
   ) %>%
   mutate(across(k, ~as.integer(as.character(.x)))) %>%
   mutate(
@@ -63,7 +64,7 @@ readr::write_rds(
 )
 
 metareg_results_rhr <- metareg_results %>%
-  distinct(outcome, subgroup, comparison, logrhr, logrhr_lower, logrhr_higher) %>%
+  distinct(model, outcome, subgroup, comparison, prior, logrhr, logrhr_lower, logrhr_higher) %>%
   mutate(across(starts_with("log"), exp)) %>%
   rename_with(~str_remove(.x, "log"))
 
