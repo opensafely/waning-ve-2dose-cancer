@@ -7675,5 +7675,5 @@ actions:
     - combine_estimates
     outputs:
       moderately_sensitive:
-        plots: output/release_objects/checking/hr_models_*.png
+        plots: output/release_objects/checking/hr_*.png
 

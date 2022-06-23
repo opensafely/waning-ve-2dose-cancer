@@ -684,7 +684,7 @@ actions_list <- splice(
     run = "r:latest analysis/post_release/plot_cox_all.R",
     needs = list("combine_estimates"),
     moderately_sensitive = list(
-      plots = "output/release_objects/checking/hr_models_*.png"
+      plots = "output/release_objects/checking/hr_*.png"
     )
   )
   
