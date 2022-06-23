@@ -386,26 +386,7 @@ for (x in 1:8) {
 }
 
 ################################################################################
-# for a given model, compare across subgroups
-
-# subgroups 1:2, no fill
-## cancer vs no cancer
-# subgroups 1:2, fill by prior
-## cancer vs no cancer & prior
-# subgroups 1:2, fill by age i.e. subgroups 5:8)
-## cancer vs no cancer & age
-# subgroups 3:4, no fill
-## haem vs solid
-# subgroups 3:4, fill by prior
-## haem vs solid & prior
-# subgroups 5,7, fill by prior
-## cancer vs no cancer in 18-69 & prior
-# subgroups 6,8, fill by prior
-## cancer vs no cancer in 70+ & prior
-# subgroups 5:6, fill by prior
-## 18-69 vs 70+ in cancer & prior
-# subgroups 7:8, fill by prior
-## 18-69 vs 70+ in no cancer & prior
+# for a given model, compare across subgroups, prior infection, age
 
 plot_subgroups <- function(group, include_prior_infection, model) {
   
@@ -473,8 +454,6 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   palette_shape <- shapes_subgroups[group_index]
   palette_linetype <- linetypes_subgroups[group_index]
   
-  # if using fill
-
   # define levels
   fill_var_levels <- unlist(lapply(
     seq_along(fill_var_levels), 
@@ -489,18 +468,21 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   tmp_data <- tmp_data %>% 
     mutate(
       fill_var = factor(
-        str_c(subgroup, !! sym(fill_by), sep = ", "),
+        str_c(subgroup_4, !! sym(fill_by), sep = ", "),
         levels = fill_var_levels,
         labels = fill_var_levels_clean
       )
     )
-  if (length(fill_var_levels) > 1) {
+  if (length(fill_var_levels) > 2) {
     # if using fill, add white to palette
     palette_fill <- c(rep("white",length(palette_colour)), palette_colour)
     names(palette_fill) <- fill_var_levels_clean
+    legend_rows <- 2
   } else {
     # otherwise same as colour palette
     palette_fill <- palette_colour
+    names(palette_fill) <- fill_var_levels_clean
+    legend_rows <- 1
   }
   
   # group_levels <- levels(tmp_data$subgroup)
@@ -508,7 +490,6 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   # fill_levels <- 
   
   p <- tmp_data %>%
-    droplevels() %>%
     ggplot(
       aes(
         x = k_labelled,
@@ -578,11 +559,11 @@ plot_subgroups <- function(group, include_prior_infection, model) {
       #   ),
       fill = guide_legend(
         title = NULL,
-        nrow = 2,
+        nrow = legend_rows,
         override.aes = list(
-          colour = rep(palette_colour,times=2),
-          shape = rep(palette_shape,times=2),
-          linetype = rep(palette_linetype,time=2),
+          colour = rep(palette_colour,times=legend_rows),
+          shape = rep(palette_shape,times=legend_rows),
+          linetype = rep(palette_linetype,time=legend_rows),
           fill = palette_fill
         )
       )
@@ -625,13 +606,25 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   filename_group <- str_c(group, collapse = "")
   filename_prior <- include_prior_infection
   if (length(include_prior_infection)>1) filename_prior <- "prior"
+  filename <- glue("hr_subgroups_{filename_group}_{filename_prior}_{model}.png")
+  
   ggsave(p,
-         filename = file.path(release_folder, "checking", glue("hr_subgroups_{group}_{include_prior_infection}_{model}.png")),
+         filename = file.path(release_folder, "checking", filename),
          width=page_height, height=page_width, units="cm")
   
 }
 
+# subgroups 1:2, no fill
+## cancer vs noncancer, main comparison (Lee)
+try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=1))
+## haem vs solid, main comparison (Lee)
+try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
 
+# subgroups 1:2, fill by prior
+try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
+
+# subgroups 1:2, fill by age i.e. subgroups 5:8), no prior infection
+try(plot_subgroups(group=5:8, include_prior_infection=FALSE, model=2))
 
 # "analysis" plots:
 ## cancer, non cancer
