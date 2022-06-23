@@ -565,7 +565,7 @@ actions_list <- splice(
   
   comment(" "),
   
-  comment("Main analysis and cancer type for comparison with Lee et al."),
+  comment("All analyses with prior infection included"),
   
   splice(
     unlist(
@@ -575,7 +575,7 @@ actions_list <- splice(
           splice(
             unlist(
               lapply(
-                c(1,2,3,4), #subgroup indices
+                1:8, #subgroup indices
                 function(y)
                   splice(
                     unlist(
@@ -601,7 +601,7 @@ actions_list <- splice(
     )
   ),
   
-  comment("Main analysis and cancer type with prior infection removed"),
+  comment("All analyses with prior infection removed"),
   
   splice(
     unlist(
@@ -611,7 +611,7 @@ actions_list <- splice(
           splice(
             unlist(
               lapply(
-                c(1,2,3,4), #subgroup indices
+                1:8, #subgroup indices
                 function(y)
                   splice(
                     unlist(
@@ -649,7 +649,7 @@ actions_list <- splice(
             splice(
               unlist(
                 lapply(
-                  c(1,2,3,4), #subgroup indices
+                 1:8, #subgroup indices
                   function(y)
                     splice(
                       unlist(
