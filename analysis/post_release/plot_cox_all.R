@@ -53,14 +53,6 @@ comparisons_new <- c("BNT162b2", "ChAdOx1", "Combined")
 # read estimates data
 estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
 
-if (metareg) {
-  # read metareg data
-  metareg_results_k <- readr::read_rds(
-    file.path(release_folder, "metareg_results_k.rds")) %>%
-    select(subgroup, comparison, outcome, k, starts_with("line")) %>%
-    mutate(model="adjusted") 
-}
-
 ################################################################################
 # gg plot pallete
 gg_color_hue <- function(n, transparency = 1) {
@@ -111,53 +103,27 @@ subgroup_plot_labels <- subgroups
 plot_data <- estimates_all %>%
   filter(
     !reference_row,
-    variable %in% "k"
+    !is.na(estimate),
+    variable %in% "k",
+    # keep only outcomes of interest
+    outcome %in% outcomes
   ) %>%
-  # keep only outcomes of interest
-  filter(outcome %in% outcomes) %>%
-  # remove as too few events
-  # filter(
-  #   !(comparison %in% c("BNT162b2", "both") & subgroup %in% c(3,4) & outcome == "noncoviddeath"),
-  #   !(comparison %in% c("BNT162b2", "both") & subgroup %in% 3 & outcome == "covidadmitted")
-  # ) %>%
-  mutate(across(c(estimate, conf.low, conf.high), exp)) %>%
   mutate(k=as.integer(label)) %>%
-  mutate(k_labelled = k) %>%
-  mutate(across(k_labelled, 
-                factor, 
-                levels = 1:K,
-                labels = weeks_since_2nd_vax)) %>%
+  mutate(across(c(estimate, conf.low, conf.high), exp)) %>%
   mutate(across(subgroup,
                 factor,
                 levels = subgroup_labels,
                 labels = subgroups
-  )) %>%
-  mutate(across(model,
-                factor,
-                levels = c("unadjusted", "part_adjusted", "max_adjusted"),
-                labels = sapply(c("Stratfied Cox model, no further adjustment",
-                                  "Stratfied Cox model, adjustment for demographic variables",
-                                  "Stratfied Cox model, adjustment for demographic and clinical variables"),
-                                str_wrap, width=100))) %>%
-  mutate(outcome_unlabelled = outcome) %>%
-  mutate(across(outcome,
-                factor,
-                levels = unname(outcomes[outcomes_order]),
-                labels = str_wrap(names(outcomes[outcomes_order]), 10)
-  )) %>%
-  mutate(across(subgroup,
-                factor,
-                levels = subgroups,
-                labels = str_wrap(subgroup_plot_labels, 25)
-  )) %>%
-  mutate(across(comparison,
-                factor,
-                levels = comparisons_old,
-                labels = comparisons_new
-                )) 
-
+  )) 
 
 if (metareg) {
+  
+  # read metareg data
+  metareg_results_k <- readr::read_rds(
+    file.path(release_folder, "metareg_results_k.rds")) %>%
+    select(subgroup, comparison, outcome, k, starts_with("line")) %>%
+    mutate(model="adjusted") 
+  
   plot_data <- plot_data %>%
     left_join(
       metareg_results_k, 
@@ -178,6 +144,65 @@ if (metareg) {
                   ~ if_else(min_k <= k & k <= max_k,
                             .x,
                             NA_real_)))
+}
+
+plot_data <- plot_data %>%
+  mutate(k_labelled = k) %>%
+  mutate(across(k_labelled, 
+                factor, 
+                levels = 1:K,
+                labels = weeks_since_2nd_vax)) %>%
+  mutate(across(model,
+                factor,
+                levels = c("unadjusted", "part_adjusted", "max_adjusted"),
+                labels = sapply(c("Stratfied Cox model, no further adjustment",
+                                  "Stratfied Cox model, adjustment for demographic variables",
+                                  "Stratfied Cox model, adjustment for demographic and clinical variables"),
+                                str_wrap, width=100))) %>%
+  mutate(outcome_unlabelled = outcome) %>%
+  mutate(across(outcome,
+                factor,
+                levels = unname(outcomes[outcomes_order]),
+                labels = str_wrap(names(outcomes[outcomes_order]), 10)
+  )) %>%
+  mutate(across(subgroup,
+                factor,
+                levels = subgroups,
+                labels = str_wrap(subgroup_plot_labels, 100)
+  )) %>%
+  mutate(across(comparison,
+                factor,
+                levels = comparisons_old,
+                labels = comparisons_new
+  )) 
+
+# DUMMY DATA
+if (TRUE) {
+  
+  plot_data <- bind_rows(
+    plot_data,
+    plot_data %>% mutate(prior = FALSE) %>% mutate(across(c(estimate), ~.x+0.1))
+  )
+  
+  plot_data <- bind_rows(
+    plot_data,
+    plot_data %>% 
+      filter(subgroup %in% c("cancer", "noncancer")) %>%
+      mutate(age_group = sample(
+        x = c("18-69", "70+"),
+        size = nrow(.),
+        replace = TRUE
+      )) %>%
+      mutate(across(subgroup, ~str_c(.x, age_group, sep = "_"))) %>%
+      select(-age_group) %>%
+      mutate(across(c(estimate), ~.x+0.1))
+  ) %>%
+    mutate(across(subgroup,
+                  factor,
+                  levels = subgroups,
+                  labels = str_wrap(subgroup_plot_labels, 100)
+    ))
+  
 }
 
 #################################################################################
@@ -201,6 +226,7 @@ palette_unadj <- addalpha(palette_subgroups, alpha=0.2)
 palette_part <- addalpha(palette_subgroups, alpha=0.6)
 palette_max <- palette_subgroups
 names_models <- levels(plot_data$model)
+names(palette_subgroups) <- subgroups[1:4]
 names(palette_unadj) <- rep(names_models[1],4)
 names(palette_part) <- rep(names_models[2],4)
 names(palette_max) <- rep(names_models[3],4)
@@ -223,7 +249,7 @@ anytest_y1 <- list(breaks = c(0.5, 1, 2, 5),
                    limits = c(0.5, 5))
 
 ################################################################################
-# for each subgroup, plot all three models
+# for each subgroup, compare all three models
 # 1 plot per subgroup, facet_rows=outcome, facet_cols=brand, shades=model
 plot_models <- function(group, include_prior_infection) {
   
@@ -353,13 +379,260 @@ plot_models <- function(group, include_prior_infection) {
     
 }
 
-for (x in 1:4) {
+for (x in 1:8) {
   for (y in c(TRUE, FALSE)) {
     try(plot_models(group=x, include_prior_infection = y))
   }
 }
 
 ################################################################################
+# for a given model, compare across subgroups
+
+# subgroups 1:2, no fill
+## cancer vs no cancer
+# subgroups 1:2, fill by prior
+## cancer vs no cancer & prior
+# subgroups 1:2, fill by age i.e. subgroups 5:8)
+## cancer vs no cancer & age
+# subgroups 3:4, no fill
+## haem vs solid
+# subgroups 3:4, fill by prior
+## haem vs solid & prior
+# subgroups 5,7, fill by prior
+## cancer vs no cancer in 18-69 & prior
+# subgroups 6,8, fill by prior
+## cancer vs no cancer in 70+ & prior
+# subgroups 5:6, fill by prior
+## 18-69 vs 70+ in cancer & prior
+# subgroups 7:8, fill by prior
+## 18-69 vs 70+ in no cancer & prior
+
+plot_subgroups <- function(group, include_prior_infection, model) {
+  
+  # if (length(group) > 1 & length(include_prior_infection) == 1) {
+  #   include_prior_infection <- rep(include_prior_infection, length(group))
+  # } 
+  # if (length(group) == 1 & length(include_prior_infection) > 1) {
+  #   group <- rep(group, length(include_prior_infection))
+  # }
+  
+  # create subgroup_4 and age_group from subgroup
+  subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
+  tmp_data <- plot_data %>%
+    mutate(
+      subgroup_4 = str_remove(as.character(subgroup), "_.+"),
+      age_group = str_remove(as.character(subgroup), ".+_"),
+        ) %>%
+    mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
+    mutate(across(age_group, factor, levels = c("18-69", "70+")))
+  
+  # # filter subgroups and prior infection
+  # filter_str <- sapply(
+  #   seq_along(group),
+  #   function(x)
+  #     glue("(subgroup == subgroups[{group[x]}] & prior == include_prior_infection[{x}])")
+  # )
+  # filter_str <- str_c(filter_str, collapse = " | ")
+  # filter_expr <- rlang::parse_expr(filter_str)
+  # 
+  
+  # filter data according to arguments
+  models <- levels(plot_data$model)
+  tmp_data <- tmp_data %>%
+    filter(
+      subgroup %in% subgroups[group],
+      prior %in% include_prior_infection,
+      # !! filter_expr,
+      model == models[model],
+      outcome_unlabelled != "anytest" 
+    ) %>%
+    droplevels()
+  
+  subgroup_levels_current <- levels(tmp_data$subgroup_4)
+  
+  # indexes for colour palette
+  group_index <- which(subgroup_4_levels %in% subgroup_levels_current)
+  
+  # indexes for fill
+  age_group_levels <- levels(tmp_data$age_group)
+  prior_levels <- unique(tmp_data$prior)
+  # fill by prior infection unless more than one age group
+  fill_by <- "prior"
+  fill_var_levels <- as.character(sort(prior_levels))
+  # white_level <- "FALSE" # when prior infection removed, white fill
+  if (length(age_group_levels) > 1) {
+    # if more than one age group, fill by age group
+    fill_by <- "age_group"
+    # white_level <- "18-69" # when age 18-69, white fill
+    fill_var_levels <- age_group_levels
+  } 
+  
+  # define colour palette
+  palette_colour <- palette_subgroups[group_index]
+  # define shapes and linetypes
+  palette_shape <- shapes_subgroups[group_index]
+  palette_linetype <- linetypes_subgroups[group_index]
+  
+  # if using fill
+
+  # define levels
+  fill_var_levels <- unlist(lapply(
+    seq_along(fill_var_levels), 
+    function(x)
+      str_c(subgroup_levels_current, fill_var_levels[x], sep = ", ")
+  ))  
+  fill_var_levels_clean <- str_replace(fill_var_levels, "TRUE", "prior infection included")
+  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "FALSE", "prior infection excluded")
+  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "18-69", "18-69 years")
+  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "70\\+", "70\\+ years")
+  # derive variable  
+  tmp_data <- tmp_data %>% 
+    mutate(
+      fill_var = factor(
+        str_c(subgroup, !! sym(fill_by), sep = ", "),
+        levels = fill_var_levels,
+        labels = fill_var_levels_clean
+      )
+    )
+  if (length(fill_var_levels) > 1) {
+    # if using fill, add white to palette
+    palette_fill <- c(rep("white",length(palette_colour)), palette_colour)
+    names(palette_fill) <- fill_var_levels_clean
+  } else {
+    # otherwise same as colour palette
+    palette_fill <- palette_colour
+  }
+  
+  # group_levels <- levels(tmp_data$subgroup)
+  # prior_levels <- sort(unique(tmp_data$prior))
+  # fill_levels <- 
+  
+  p <- tmp_data %>%
+    droplevels() %>%
+    ggplot(
+      aes(
+        x = k_labelled,
+        colour = subgroup_4,
+        fill = fill_var
+      )
+    ) +
+    geom_hline(aes(yintercept=1), colour='grey')
+  
+  if (metareg) {
+    p <- p +
+      geom_line(
+        aes(y = line, 
+            colour = subgroup_4, 
+            linetype = subgroup_4,
+            group = line_group
+        )
+      ) +
+      scale_linetype_manual(values = palette_linetype, guide = "none") 
+    
+  }
+  
+  p <- p +
+    geom_linerange(
+      aes(ymin = conf.low, ymax = conf.high),
+      position = position_dodge(width = position_dodge_val)
+    ) +
+    geom_point(
+      aes(
+        y = estimate,
+        shape = subgroup_4
+      ),
+      position = position_dodge(width = position_dodge_val)
+    ) +
+    facet_grid(
+      outcome ~ comparison, 
+      switch = "y", 
+      # scales = "free", 
+      space = "free_x"
+    ) +
+    scale_y_log10(
+      name = y_lab_adj,
+      breaks = primary_vax_y1[["breaks"]],
+      limits = primary_vax_y1[["limits"]],
+      oob = scales::oob_keep,
+      sec.axis = sec_axis(
+        ~(1-.),
+        name=y_lab_adj_2,
+        breaks = primary_vax_y2[["breaks"]],
+        labels = function(x){formatpercent100(x, 1)}
+      )
+    ) +
+    labs(
+      x = x_lab
+    ) +
+    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
+    scale_fill_manual(values = palette_fill, name = NULL) +
+    scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
+    guides(
+      # colour = guide_legend(
+      #   title = NULL,
+      #   override.aes = list(
+      #     shape = palette_shape,
+      #     linetype = palette_linetype,
+      #     fill = palette_colour
+      #     )
+      #   ),
+      fill = guide_legend(
+        title = NULL,
+        nrow = 2,
+        override.aes = list(
+          colour = rep(palette_colour,times=2),
+          shape = rep(palette_shape,times=2),
+          linetype = rep(palette_linetype,time=2),
+          fill = palette_fill
+        )
+      )
+      ) +
+    theme_bw() +
+    theme(
+      panel.border = element_blank(),
+      axis.line.y = element_line(colour = "black"),
+      
+      axis.text = element_text(size=10),
+      
+      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+      axis.text.x = element_text(size=8),
+      axis.text.y = element_text(size=8),
+      
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      strip.background = element_blank(),
+      strip.placement = "outside",
+      strip.text.y.left = element_text(angle = 0),
+      strip.text = element_text(size=8),
+      
+      panel.spacing = unit(0.8, "lines"),
+      
+      plot.title = element_text(hjust = 0),
+      plot.title.position = "plot",
+      plot.caption.position = "plot",
+      plot.caption = element_text(hjust = 0, face= "italic"),
+      
+      legend.position = "bottom",
+      # legend.direction = "vertical",
+      # big margins to cover up grid lines
+      # legend.margin = margin(t = 30, r = 20, b = 30, l = 10),
+      legend.key.width = unit(2, 'cm'),
+      # legend.position = "bottom",
+      legend.text = element_text(size=10)
+    ) 
+  
+  filename_group <- str_c(group, collapse = "")
+  filename_prior <- include_prior_infection
+  if (length(include_prior_infection)>1) filename_prior <- "prior"
+  ggsave(p,
+         filename = file.path(release_folder, "checking", glue("hr_subgroups_{group}_{include_prior_infection}_{model}.png")),
+         width=page_height, height=page_width, units="cm")
+  
+}
+
+
+
 # "analysis" plots:
 ## cancer, non cancer
 ## cancer, non cancer x prior, no prior
