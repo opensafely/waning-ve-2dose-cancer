@@ -177,33 +177,33 @@ plot_data <- plot_data %>%
   )) 
 
 # DUMMY DATA
-if (TRUE) {
-  
-  plot_data <- bind_rows(
-    plot_data,
-    plot_data %>% mutate(prior = FALSE) %>% mutate(across(c(estimate), ~.x+0.1))
-  )
-  
-  plot_data <- bind_rows(
-    plot_data,
-    plot_data %>% 
-      filter(subgroup %in% c("cancer", "noncancer")) %>%
-      mutate(age_group = sample(
-        x = c("18-69", "70+"),
-        size = nrow(.),
-        replace = TRUE
-      )) %>%
-      mutate(across(subgroup, ~str_c(.x, age_group, sep = "_"))) %>%
-      select(-age_group) %>%
-      mutate(across(c(estimate), ~.x+0.1))
-  ) %>%
-    mutate(across(subgroup,
-                  factor,
-                  levels = subgroups,
-                  labels = str_wrap(subgroup_plot_labels, 100)
-    ))
-  
-}
+# if (TRUE) {
+#   
+#   plot_data <- bind_rows(
+#     plot_data,
+#     plot_data %>% mutate(prior = FALSE) %>% mutate(across(c(estimate), ~.x+0.1))
+#   )
+#   
+#   plot_data <- bind_rows(
+#     plot_data,
+#     plot_data %>% 
+#       filter(subgroup %in% c("cancer", "noncancer")) %>%
+#       mutate(age_group = sample(
+#         x = c("18-69", "70+"),
+#         size = nrow(.),
+#         replace = TRUE
+#       )) %>%
+#       mutate(across(subgroup, ~str_c(.x, age_group, sep = "_"))) %>%
+#       select(-age_group) %>%
+#       mutate(across(c(estimate), ~.x+0.1))
+#   ) %>%
+#     mutate(across(subgroup,
+#                   factor,
+#                   levels = subgroups,
+#                   labels = str_wrap(subgroup_plot_labels, 100)
+#     ))
+#   
+# }
 
 #################################################################################
 # spacing of points on plot
