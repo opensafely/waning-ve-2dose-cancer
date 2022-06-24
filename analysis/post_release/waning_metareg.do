@@ -96,7 +96,7 @@ postfile `memhold' model outcome stratum vaccine prior logrhr selogrhr loghr1 se
 forvalues m=1/3 {
 	forvalues i=1/5 {
 		forvalues v=1/3 {
-			forvalues s=1/4 {
+			forvalues s=1/8 {
 				forvalues p=1/2 {
 					di "A: " `m' `i' `s' `v' `p'
 					count if model==`m' & outcome==`i' & stratum==`s' & vaccine==`v' & prior==`p' & loghr<.
