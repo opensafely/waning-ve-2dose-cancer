@@ -36,7 +36,7 @@ outcomes <- readr::read_rds(
   here::here("analysis", "lib", "outcomes.rds")
 )
 outcomes <- outcomes[outcomes!="covidemergency"]
-outcomes_order <- c(3,4,2,5,1)
+outcomes_order <- c(2,3,4,5,1)
 outcomes_long <- names(outcomes)
 outcomes_long[outcomes=="covidadmitted"] <- "COVID-19 hospitalisation"
 names(outcomes) <- outcomes_long
@@ -102,7 +102,12 @@ x_lab <- "Weeks since second dose"
 
 # legend options
 legend_width <- 15
-subgroup_plot_labels <- subgroups
+subgroup_plot_labels <- str_replace(subgroups, "noncancer", "General cohort")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "cancer", "Cancer cohort")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "haem", "Haematological malignancy")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "solid", "Solid organ malignancy")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "_18-69", ", 18-69 years")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "_70\\+", ", 70+ years")
 
 # derive data
 plot_data <- estimates_all %>%
@@ -195,10 +200,10 @@ position_dodge_val <- 0.6
 
 # shape of points
 shapes_subgroups <- c(21,22,23,24)
-names(shapes_subgroups) <- subgroups[1:4]
+names(shapes_subgroups) <- subgroup_plot_labels[1:4]
 
 linetypes_subgroups <- c("dotted", "longdash", "dashed", "dotdash")
-names(linetypes_subgroups) <- subgroups[1:4]
+names(linetypes_subgroups) <- subgroup_plot_labels[1:4]
 
 # colour palettes
 palette_subgroups <- brewer.pal(n=4, name="Set2")
@@ -206,7 +211,7 @@ palette_unadj <- addalpha(palette_subgroups, alpha=0.2)
 palette_part <- addalpha(palette_subgroups, alpha=0.6)
 palette_max <- palette_subgroups
 names_models <- levels(plot_data$model)
-names(palette_subgroups) <- subgroups[1:4]
+names(palette_subgroups) <- subgroup_plot_labels[1:4]
 names(palette_unadj) <- rep(names_models[1],4)
 names(palette_part) <- rep(names_models[2],4)
 names(palette_max) <- rep(names_models[3],4)
@@ -220,15 +225,6 @@ primary_brand_y1 <- list(breaks = c(0.2, 0.5, 1, 2, 5),
 anytest_y1 <- list(breaks = c(0.5, 1, 2, 5), 
                    limits = c(0.5, 5))
 
-# plot titles
-plot_titles <- str_replace(subgroups, "_", ", ")
-plot_titles <- str_replace(plot_titles, "noncancer", "General population cohort")  
-plot_titles <- str_replace(plot_titles, "cancer", "Cancer cohort")
-plot_titles <- str_replace(plot_titles, "cancer", "Cancer cohort")
-plot_titles <- str_replace(plot_titles, "haem", "Haematological malignancy cohort")
-plot_titles <- str_replace(plot_titles, "solid", "Solid organ malignancy")
-plot_titles[str_detect(plot_titles, "\\d")] <- str_c(plot_titles[str_detect(plot_titles, "\\d")], " years")
-
 ################################################################################
 # for each subgroup, compare all three models
 # 1 plot per subgroup, facet_rows=outcome, facet_cols=brand, shades=model
@@ -241,7 +237,7 @@ plot_models <- function(group, include_prior_infection) {
     group_colour <- 2
   }
   
-  subtitle_str <- plot_titles[group]
+  subtitle_str <- subgroup_plot_labels[group]
   if (include_prior_infection) {
     subtitle_str <- str_c(subtitle_str, ", prior infection included")
   } else {
@@ -254,11 +250,11 @@ plot_models <- function(group, include_prior_infection) {
     palette_max[group_colour]
     )
   shape_subgroup <- shapes_subgroups[group_colour]
-  linetype_subgroup <- linetypes_subgroups[group_colour]
+  # linetype_subgroup <- linetypes_subgroups[group_colour]
   
   p <- plot_data %>%
     filter(
-      subgroup == subgroups[group],
+      subgroup == subgroup_plot_labels[group],
       prior == include_prior_infection,
       outcome_unlabelled != "anytest" 
     ) %>%
@@ -309,7 +305,7 @@ plot_models <- function(group, include_prior_infection) {
     scale_shape_manual(values = shape_subgroup, name = NULL, guide = "none") +
     guides(colour = guide_legend(
       title = NULL,
-      override.aes = list(shape = shape_subgroup, linetype = linetype_subgroup)
+      override.aes = list(shape = shape_subgroup)
     )) +
     theme_bw() +
     theme(
@@ -367,11 +363,11 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
   tmp_data <- plot_data %>%
     mutate(
-      subgroup_4 = str_remove(as.character(subgroup), "_.+"),
-      age_group = str_remove(as.character(subgroup), ".+_"),
+      subgroup_4 = str_remove(as.character(subgroup), ", .+"),
+      age_group = str_extract(as.character(subgroup), "\\d.+"),
         ) %>%
     mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
-    mutate(across(age_group, factor, levels = c("18-69", "70+")))
+    mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
   
   # # filter subgroups and prior infection
   # filter_str <- sapply(
@@ -388,7 +384,7 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   m <- model
   tmp_data <- tmp_data %>%
     filter(
-      subgroup %in% subgroups[group],
+      subgroup %in% subgroup_plot_labels[group],
       prior %in% include_prior_infection,
       # !! filter_expr,
       model %in% models[m],
@@ -429,8 +425,8 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   ))  
   fill_var_levels_clean <- str_replace(fill_var_levels, "TRUE", "prior infection included")
   fill_var_levels_clean <- str_replace(fill_var_levels_clean, "FALSE", "prior infection excluded")
-  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "18-69", "18-69 years")
-  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "70\\+", "70\\+ years")
+  # fill_var_levels_clean <- str_replace(fill_var_levels_clean, "18-69", "18-69 years")
+  # fill_var_levels_clean <- str_replace(fill_var_levels_clean, "70\\+", "70\\+ years")
   # derive variable  
   tmp_data <- tmp_data %>% 
     mutate(
@@ -570,7 +566,7 @@ try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=1))
 try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
 
 # subgroups 1:2, fill by prior
-try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
+try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=1))
 
 # subgroups 1:2, fill by age i.e. subgroups 5:8)
 try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=3))
@@ -580,22 +576,22 @@ try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=3))
 # 3-6 month estimates from Lee study
 lee_data <- tribble(
   ~subgroup_4, ~comparison, ~prior, ~outcome_unlabelled, ~model, ~lee_period, ~estimate, ~conf.low, ~conf.high, 
-  "noncancer", "Combined", TRUE, "postest", 1, "overall", 61.4, 61.4, 61.5,
-  "noncancer", "Combined", TRUE, "postest", 1, "3-6 months", 69.8, 69.8, 69.9,
-  "noncancer", "Combined", TRUE, "postest", 1, "0-8 weeks", 80.7, NA_real_, NA_real_,
-  "noncancer", "Combined", TRUE, "postest", 1, "8-16 weeks", 64.9, NA_real_, NA_real_,
-  "noncancer", "Combined", TRUE, "postest", 1, "16-24 weeks", 61.2, NA_real_, NA_real_,
-  "noncancer", "Combined", TRUE, "postest", 1, "24-32 weeks", 69.6, NA_real_, NA_real_,
-  "cancer", "Combined", TRUE, "postest", 1, "overall", 65.5, 65.1, 65.9,
-  "cancer", "Combined", TRUE, "postest", 1, "3-6 months", 47.0, 46.3, 47.6,
-  "cancer", "Combined", TRUE, "postest", 1, "0-8 weeks", 90.5, NA_real_, NA_real_,
-  "cancer", "Combined", TRUE, "postest", 1, "8-16 weeks", 66.8, NA_real_, NA_real_,
-  "cancer", "Combined", TRUE, "postest", 1, "16-24 weeks", 42.5, NA_real_, NA_real_,
-  "cancer", "Combined", TRUE, "postest", 1, "24-32 weeks", 35.4, NA_real_, NA_real_,
-  "cancer", "Combined", TRUE, "covidadmitted", 1, "overall", 84.5, 83.6, 85.4,
-  "cancer", "Combined", TRUE, "covidadmitted", 1, "3-6 months", 74.6, 72.8, 76.3,
-  "cancer", "Combined", TRUE, "coviddeath", 1, "overall", 93.5, 93.0, 94.0,
-  "cancer", "Combined", TRUE, "coviddeath", 1, "3-6 months", 90.3, 89.3, 91.2
+  "General cohort", "Combined", TRUE, "postest", 1, "overall", 61.4, 61.4, 61.5,
+  "General cohort", "Combined", TRUE, "postest", 1, "3-6 months", 69.8, 69.8, 69.9,
+  "General cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 80.7, NA_real_, NA_real_,
+  "General cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 64.9, NA_real_, NA_real_,
+  "General cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 61.2, NA_real_, NA_real_,
+  "General cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 69.6, NA_real_, NA_real_,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "overall", 65.5, 65.1, 65.9,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "3-6 months", 47.0, 46.3, 47.6,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 90.5, NA_real_, NA_real_,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 66.8, NA_real_, NA_real_,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 42.5, NA_real_, NA_real_,
+  "Cancer cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 35.4, NA_real_, NA_real_,
+  "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "overall", 84.5, 83.6, 85.4,
+  "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "3-6 months", 74.6, 72.8, 76.3,
+  "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "overall", 93.5, 93.0, 94.0,
+  "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "3-6 months", 90.3, 89.3, 91.2
 )
 
 summary_plot <- local({
@@ -609,11 +605,11 @@ summary_plot <- local({
   subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
   tmp_data <- plot_data %>%
     mutate(
-      subgroup_4 = str_remove(as.character(subgroup), "_.+"),
-      age_group = str_remove(as.character(subgroup), ".+_"),
+      subgroup_4 = str_remove(as.character(subgroup), ", .+"),
+      age_group = str_extract(as.character(subgroup), "\\d.+"),
     ) %>%
     mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
-    mutate(across(age_group, factor, levels = c("18-69", "70+")))
+    mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
   
   # filter data according to arguments
   models <- levels(plot_data$model)
@@ -621,7 +617,7 @@ summary_plot <- local({
   tmp_data <- tmp_data %>%
     filter(
       comparison == "Combined",
-      subgroup %in% subgroups[group],
+      subgroup %in% subgroup_plot_labels[group],
       prior %in% include_prior_infection,
       # !! filter_expr,
       model %in% models[m],
@@ -635,9 +631,9 @@ summary_plot <- local({
         ) %>%
         mutate(
           xmin_val = if_else(
-            lee_period == "3-6 months", 3.5, 1
+            lee_period == "3-6 months", 3.5, 0.5
           ),
-          xmax_val = 6,
+          xmax_val = 6.5,
           ) %>%
         select(-model, -comparison) %>%
         mutate(across(subgroup_4,
@@ -696,8 +692,6 @@ summary_plot <- local({
   ))  
   fill_var_levels_clean <- str_replace(fill_var_levels, "TRUE", "prior infection included")
   fill_var_levels_clean <- str_replace(fill_var_levels_clean, "FALSE", "prior infection excluded")
-  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "18-69", "18-69 years")
-  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "70\\+", "70\\+ years")
   # derive variable  
   tmp_data <- tmp_data %>% 
     mutate(
@@ -767,7 +761,8 @@ summary_plot <- local({
     scale_x_continuous(
       breaks = seq_along(weeks_since_2nd_vax),
       labels = weeks_since_2nd_vax,
-      limits = c(1, length(weeks_since_2nd_vax))
+      limits = c(0.5, length(weeks_since_2nd_vax) + 0.5),
+      expand = c(0, 0)
     ) +
     scale_y_log10(
       name = y_lab_adj,
@@ -791,7 +786,7 @@ summary_plot <- local({
     guides(
       fill = guide_legend(
         title = NULL,
-        nrow = legend_rows,
+        nrow = 2,
         override.aes = list(
           colour = rep(palette_colour,times=legend_rows),
           shape = rep(palette_shape,times=legend_rows),
