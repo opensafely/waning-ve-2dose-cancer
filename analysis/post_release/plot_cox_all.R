@@ -196,12 +196,8 @@ position_dodge_val <- 0.6
 # shape of points
 shapes_subgroups <- c(21,22,23,24)
 names(shapes_subgroups) <- subgroups[1:4]
-# comparison_shapes <- c(16,17,15)
-# names(comparison_shapes) <- comparisons
-# hollow_shapes <- c(21,24,22)
-# names(hollow_shapes) <- comparisons
 
-linetypes_subgroups <- c("solid", "dashed", "dotted", "dotdash")
+linetypes_subgroups <- c("dotted", "longdash", "dashed", "dotdash")
 names(linetypes_subgroups) <- subgroups[1:4]
 
 # colour palettes
@@ -224,6 +220,15 @@ primary_brand_y1 <- list(breaks = c(0.2, 0.5, 1, 2, 5),
 anytest_y1 <- list(breaks = c(0.5, 1, 2, 5), 
                    limits = c(0.5, 5))
 
+# plot titles
+plot_titles <- str_replace(subgroups, "_", ", ")
+plot_titles <- str_replace(plot_titles, "noncancer", "General population cohort")  
+plot_titles <- str_replace(plot_titles, "cancer", "Cancer cohort")
+plot_titles <- str_replace(plot_titles, "cancer", "Cancer cohort")
+plot_titles <- str_replace(plot_titles, "haem", "Haematological malignancy cohort")
+plot_titles <- str_replace(plot_titles, "solid", "Solid organ malignancy")
+plot_titles[str_detect(plot_titles, "\\d")] <- str_c(plot_titles[str_detect(plot_titles, "\\d")], " years")
+
 ################################################################################
 # for each subgroup, compare all three models
 # 1 plot per subgroup, facet_rows=outcome, facet_cols=brand, shades=model
@@ -234,6 +239,13 @@ plot_models <- function(group, include_prior_infection) {
     group_colour <- 1
   } else if (group %in% 7:8) {
     group_colour <- 2
+  }
+  
+  subtitle_str <- plot_titles[group]
+  if (include_prior_infection) {
+    subtitle_str <- str_c(subtitle_str, ", prior infection included")
+  } else {
+    subtitle_str <- str_c(subtitle_str, ", prior infection excluded")
   }
   
   palette_model <- c(
@@ -258,23 +270,7 @@ plot_models <- function(group, include_prior_infection) {
         fill = model
       )
     ) +
-    geom_hline(aes(yintercept=1), colour='grey')
-  
-  # if (metareg) {
-  #   p <- p +
-  #     geom_line(
-  #       aes(y = line, 
-  #           colour = model, 
-  #           linetype = subgroup,
-  #           group = line_group
-  #       )#, 
-  #       # alpha = 0.6
-  #     ) +
-  #     scale_linetype_manual(values = linetype_subgroup, guide = "none") 
-  #     
-  # }
-  
-   p <- p +
+    geom_hline(aes(yintercept=1), colour='grey') +
     geom_linerange(
       aes(ymin = conf.low, ymax = conf.high),
       position = position_dodge(width = position_dodge_val)
@@ -282,8 +278,8 @@ plot_models <- function(group, include_prior_infection) {
     geom_point(
       aes(
         y = estimate,
-        shape = subgroup
         ),
+      shape = shape_subgroup,
       position = position_dodge(width = position_dodge_val)
     ) +
     facet_grid(
@@ -305,7 +301,8 @@ plot_models <- function(group, include_prior_infection) {
       )
     ) +
     labs(
-      x = x_lab
+      x = x_lab,
+      subtitle = subtitle_str
     ) +
     scale_color_manual(values = palette_model, name = NULL) +
     scale_fill_manual(values = palette_model, name = NULL) +
@@ -575,8 +572,8 @@ try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
 # subgroups 1:2, fill by prior
 try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
 
-# subgroups 1:2, fill by age i.e. subgroups 5:8), no prior infection
-try(plot_subgroups(group=5:8, include_prior_infection=FALSE, model=2))
+# subgroups 1:2, fill by age i.e. subgroups 5:8)
+try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=3))
 
 
 ##############################################################################
@@ -634,8 +631,14 @@ summary_plot <- local({
     bind_rows(
       lee_data %>%
         filter(
-          lee_period == "3-6 months"
+          lee_period %in% c("3-6 months", "overall")
         ) %>%
+        mutate(
+          xmin_val = if_else(
+            lee_period == "3-6 months", 3.5, 1
+          ),
+          xmax_val = 6,
+          ) %>%
         select(-model, -comparison) %>%
         mutate(across(subgroup_4,
                       factor,
@@ -720,14 +723,15 @@ summary_plot <- local({
   p <- tmp_data %>%
     ggplot(
       aes(
-        x = k_labelled,
+        x = period,
         colour = subgroup_4,
         fill = fill_var
       )
     ) +
     geom_rect(
-      xmin = 3.7, xmax = 7,
+      # xmin = 3.7, xmax = 7,
       aes(
+        xmin = xmin_val, xmax = xmax_val,
         ymax = lee_conf.low, ymin = lee_conf.high,
         fill = fill_var
       ),
@@ -759,6 +763,11 @@ summary_plot <- local({
       switch = "y", 
       # scales = "free", 
       space = "free_x"
+    ) +
+    scale_x_continuous(
+      breaks = seq_along(weeks_since_2nd_vax),
+      labels = weeks_since_2nd_vax,
+      limits = c(1, length(weeks_since_2nd_vax))
     ) +
     scale_y_log10(
       name = y_lab_adj,
@@ -830,4 +839,4 @@ summary_plot <- local({
          filename = file.path(release_folder, "checking", "hr_subgroups_lee.png"),
          width=page_width, height=16, units="cm")
   
-})
+(boxes)})
