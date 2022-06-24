@@ -1,0 +1,43 @@
+%%%%% preamble start
+% set font
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+
+\usepackage{titlesec}
+\titleformat*{\section}{\normalsize\bfseries}
+\titlespacing*{\section}{0pt}{*2}{12pt}
+\titleformat*{\subsection}{\normalsize\bfseries}
+\titlespacing*{\subsection}{0pt}{*1}{12pt}
+
+% table and figure caption labels
+\renewcommand{\tablename}{Supplementary Table}
+\renewcommand{\figurename}{Supplementary Figure}
+\newcommand{\figref}{Supplementary~Figure~\ref}
+\newcommand{\figsref}{Supplementary~Figures~\ref}
+\newcommand{\tabref}{Supplementary~Table~\ref}
+\newcommand{\tabsref}{Supplementary~Tables~\ref}
+
+% make caption labels bold
+\usepackage[labelfont=bf]{caption}
+
+% Landscape command for landscaped figures and tables
+\usepackage{lscape}
+\newcommand{\blandscape}{\begin{landscape}}
+\newcommand{\elandscape}{\end{landscape}}
+
+% for figure placement
+\usepackage{float}
+
+% for hyperlinks
+\hypersetup{
+    bookmarksnumbered=false, % true means bookmarks in left window are numbered
+    bookmarksopen=false,     % true means only level 1 is displayed.
+    colorlinks=true,         % false: boxed links; true: colored links
+    linkcolor=black,          % color of internal links
+    citecolor=black,          
+    urlcolor=cyan,          
+    pdfstartview=FitH
+}
+
+%%%%% preamble end

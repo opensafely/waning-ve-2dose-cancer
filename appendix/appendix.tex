@@ -1,0 +1,323 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  10,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+%%%%% preamble start
+% set font
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+
+\usepackage{titlesec}
+\titleformat*{\section}{\normalsize\bfseries}
+\titlespacing*{\section}{0pt}{*2}{12pt}
+\titleformat*{\subsection}{\normalsize\bfseries}
+\titlespacing*{\subsection}{0pt}{*1}{12pt}
+
+% table and figure caption labels
+\renewcommand{\tablename}{Supplementary Table}
+\renewcommand{\figurename}{Supplementary Figure}
+\newcommand{\figref}{Supplementary~Figure~\ref}
+\newcommand{\figsref}{Supplementary~Figures~\ref}
+\newcommand{\tabref}{Supplementary~Table~\ref}
+\newcommand{\tabsref}{Supplementary~Tables~\ref}
+
+% make caption labels bold
+\usepackage[labelfont=bf]{caption}
+
+% Landscape command for landscaped figures and tables
+\usepackage{lscape}
+\newcommand{\blandscape}{\begin{landscape}}
+\newcommand{\elandscape}{\end{landscape}}
+
+% for figure placement
+\usepackage{float}
+
+% for hyperlinks
+\hypersetup{
+    bookmarksnumbered=false, % true means bookmarks in left window are numbered
+    bookmarksopen=false,     % true means only level 1 is displayed.
+    colorlinks=true,         % false: boxed links; true: colored links
+    linkcolor=black,          % color of internal links
+    citecolor=black,          
+    urlcolor=cyan,          
+    pdfstartview=FitH
+}
+
+%%%%% preamble end
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+
+% table of contents
+\tableofcontents
+
+% list of tables
+\addcontentsline{toc}{section}{\listtablename}
+\listoftables
+
+% list of figures
+\addcontentsline{toc}{section}{\listfigurename}
+\listoffigures
+
+\begin{landscape}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_1_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, prior infection included)}\label{fig:unnamed-chunk-2}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_1_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, prior infection excluded)}\label{fig:unnamed-chunk-3}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_2_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, prior infection included)}\label{fig:unnamed-chunk-4}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_2_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, prior infection excluded)}\label{fig:unnamed-chunk-5}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_3_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (haematological malignancy, prior infection included)}\label{fig:unnamed-chunk-6}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_3_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (haematological malignancy, prior infection excluded)}\label{fig:unnamed-chunk-7}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_4_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (solid organ malignancy, prior infection excluded)}\label{fig:unnamed-chunk-8}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_4_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (solid organ malignancy, prior infection excluded)}\label{fig:unnamed-chunk-9}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_5_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, 18-69 years, prior infection included)}\label{fig:unnamed-chunk-10}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_5_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, 18-69 years, prior infection excluded)}\label{fig:unnamed-chunk-11}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_6_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, 70+ years, prior infection included)}\label{fig:unnamed-chunk-12}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_6_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (cancer cohort, 70+ years, prior infection excluded)}\label{fig:unnamed-chunk-13}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_7_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, 18-69 years, prior infection included)}\label{fig:unnamed-chunk-14}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_7_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, 18-69 years, prior infection excluded)}\label{fig:unnamed-chunk-15}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_8_TRUE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, 70+ years, prior infection included)}\label{fig:unnamed-chunk-16}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_models_8_FALSE} 
+
+}
+
+\caption{Models with varying adjustments (general cohort, 70+ years, prior infection excluded)}\label{fig:unnamed-chunk-17}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_subgroups_12_prior_1} 
+
+}
+
+\caption{Prior infection included and excluded (unadjusted models)}\label{fig:unnamed-chunk-18}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_subgroups_34_TRUE_2} 
+
+}
+
+\caption{Haematological and solid organ malignancies (models adjusted for demographic variables)}\label{fig:unnamed-chunk-19}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=\linewidth]{/Users/eh1415/Documents/waning-ve-2dose-cancer/release20220622/checking/hr_subgroups_5678_TRUE_3} 
+
+}
+
+\caption{18-69 and 70+ years subgroups (models adjusted for demographic and clinical variables)}\label{fig:unnamed-chunk-20}
+\end{figure}
+
+\end{landscape}
+
+\end{document}

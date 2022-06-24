@@ -1,0 +1,134 @@
+---
+output: 
+  bookdown::pdf_document2:
+    includes:
+      in_header: preamble.tex
+      before_body: preface.tex
+    keep_tex: true
+    latex_engine: xelatex
+    toc: false # defined in preface.tex
+    number_sections: false
+fontsize: 10
+subparagraph: yes
+geometry: margin=1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  include = FALSE,
+  fig.pos = "H",
+  fig.align = "center"
+  # ft.arraystretch=1
+)
+```
+
+```{r libraries}
+library(tidyverse)
+library(kableExtra)
+library(glue)
+```
+
+```{r paths}
+# path for released results
+release_folder <- here::here("release20220622")
+```
+
+```{r}
+# read subgroups
+subgroups <- readr::read_rds(
+  here::here("analysis", "lib", "subgroups.rds"))
+
+subgroup_labels <- str_replace(subgroups, "noncancer", "general cohort")
+subgroup_labels <- str_replace(subgroup_labels, "cancer", "cancer cohort")
+subgroup_labels <- str_replace(subgroup_labels, "haem", "haematological malignancy")
+subgroup_labels <- str_replace(subgroup_labels, "solid", "solid organ malignancy")
+subgroup_labels <- str_replace(subgroup_labels, "_18-69", ", 18-69 years")
+subgroup_labels <- str_replace(subgroup_labels, "_70\\+", ", 70+ years")
+
+model_str <- "Models with varying adjustments"
+subgroup_TRUE <- str_c(model_str, " (", subgroup_labels, ", prior infection included)")
+subgroup_FALSE <- str_c(model_str, " (", subgroup_labels, ", prior infection excluded)")
+
+```
+
+
+\begin{landscape}
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[1], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_1_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[1], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_1_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[2], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_2_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[2], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_2_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[3], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_3_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[3], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_3_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[4], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_4_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[4], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_4_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[5], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_5_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[5], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_5_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[6], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_6_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[6], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_6_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[7], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_7_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[7], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_7_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_TRUE[8], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_8_TRUE.png"))
+```
+
+```{r, include=TRUE, fig.cap=subgroup_FALSE[8], out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_models_8_FALSE.png"))
+```
+
+```{r, include=TRUE, fig.cap="Prior infection included and excluded (unadjusted models)", out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_subgroups_12_prior_1.png"))
+```
+
+```{r, include=TRUE, fig.cap="Haematological and solid organ malignancies (models adjusted for demographic variables)", out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_subgroups_34_TRUE_2.png"))
+```
+
+```{r, include=TRUE, fig.cap="18-69 and 70+ years subgroups (models adjusted for demographic and clinical variables)", out.width="\\linewidth"}
+knitr::include_graphics(file.path(release_folder, "checking", "hr_subgroups_5678_TRUE_3.png"))
+```
+
+\end{landscape}
