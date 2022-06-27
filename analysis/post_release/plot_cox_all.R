@@ -96,8 +96,6 @@ page_width <- 17
 # axis labels 
 y_lab <- "Hazard Ratio (HR)"
 y_lab_2 <- "Estimated vaccine effectiveness = 100*(1-HR)\n "
-y_lab_adj <- "adjusted Hazard Ratio (aHR)"
-y_lab_adj_2 <- "Estimated vaccine effectiveness = 100*(1-aHR)\n "
 x_lab <- "Weeks since second dose"
 
 # legend options
@@ -285,13 +283,13 @@ plot_models <- function(group, include_prior_infection) {
       space = "free_x"
       ) +
     scale_y_log10(
-      name = y_lab_adj,
+      name = y_lab,
       breaks = primary_vax_y1[["breaks"]],
       limits = primary_vax_y1[["limits"]],
       oob = scales::oob_keep,
       sec.axis = sec_axis(
         ~(1-.),
-        name=y_lab_adj_2,
+        name=y_lab_2,
         breaks = primary_vax_y2[["breaks"]],
         labels = function(x){formatpercent100(x, 1)}
       )
@@ -483,13 +481,13 @@ plot_subgroups <- function(group, include_prior_infection, model) {
       space = "free_x"
     ) +
     scale_y_log10(
-      name = y_lab_adj,
+      name = y_lab,
       breaks = primary_vax_y1[["breaks"]],
       limits = primary_vax_y1[["limits"]],
       oob = scales::oob_keep,
       sec.axis = sec_axis(
         ~(1-.),
-        name=y_lab_adj_2,
+        name=y_lab_2,
         breaks = primary_vax_y2[["breaks"]],
         labels = function(x){formatpercent100(x, 1)}
       )
@@ -624,39 +622,6 @@ summary_plot <- local({
       !(outcome_unlabelled %in% c("anytest", "noncoviddeath")) 
     ) %>%
     select(-comparison) %>%
-    bind_rows(
-      lee_data %>%
-        filter(
-          lee_period %in% c("3-6 months", "overall")
-        ) %>%
-        mutate(
-          xmin_val = if_else(
-            lee_period == "3-6 months", 3.5, 0.5
-          ),
-          xmax_val = 6.5,
-          ) %>%
-        select(-model, -comparison) %>%
-        mutate(across(subgroup_4,
-                      factor,
-                      levels = str_wrap(subgroup_plot_labels, 100)
-        )) %>%
-        mutate(outcome = outcome_unlabelled) %>%
-        mutate(across(outcome,
-                      factor,
-                      levels = unname(outcomes[outcomes_order]),
-                      labels = str_wrap(names(outcomes[outcomes_order]), 10)
-        )) %>%
-        # uncount(weights=3) %>%
-        select(-lee_period) %>%
-        mutate(k_labelled = 6) %>%
-        mutate(across(k_labelled,
-                      factor,
-                      levels = 1:K,
-                      labels = weeks_since_2nd_vax)) %>%
-        mutate(across(c(estimate, conf.low, conf.high), ~ 1 - (.x/100))) %>%
-        rename_with(.fn = ~ str_c("lee_", .x), .cols = c(estimate, conf.low, conf.high)) #%>%
-        # mutate(line_group = str_c(subgroup, outcome_unlabelled, sep = "; "))
-    ) %>%
     droplevels() 
   
   subgroup_levels_current <- levels(tmp_data$subgroup_4)
@@ -664,54 +629,12 @@ summary_plot <- local({
   # indexes for colour palette
   group_index <- which(subgroup_4_levels %in% subgroup_levels_current)
   
-  # indexes for fill
-  age_group_levels <- levels(tmp_data$age_group)
-  prior_levels <- unique(tmp_data$prior)
-  # fill by prior infection unless more than one age group
-  fill_by <- "prior"
-  fill_var_levels <- as.character(sort(prior_levels))
-  # white_level <- "FALSE" # when prior infection removed, white fill
-  if (length(age_group_levels) > 1) {
-    # if more than one age group, fill by age group
-    fill_by <- "age_group"
-    # white_level <- "18-69" # when age 18-69, white fill
-    fill_var_levels <- age_group_levels
-  } 
-  
   # define colour palette
   palette_colour <- palette_subgroups[group_index]
   # define shapes and linetypes
   palette_shape <- shapes_subgroups[group_index]
   palette_linetype <- linetypes_subgroups[group_index]
-  
-  # define levels
-  fill_var_levels <- unlist(lapply(
-    seq_along(fill_var_levels), 
-    function(x)
-      str_c(subgroup_levels_current, fill_var_levels[x], sep = ", ")
-  ))  
-  fill_var_levels_clean <- str_replace(fill_var_levels, "TRUE", "prior infection included")
-  fill_var_levels_clean <- str_replace(fill_var_levels_clean, "FALSE", "prior infection excluded")
-  # derive variable  
-  tmp_data <- tmp_data %>% 
-    mutate(
-      fill_var = factor(
-        str_c(subgroup_4, !! sym(fill_by), sep = ", "),
-        levels = fill_var_levels,
-        labels = fill_var_levels_clean
-      )
-    )
-  if (length(fill_var_levels) > 2) {
-    # if using fill, add white to palette
-    palette_fill <- c(rep("white",length(palette_colour)), palette_colour)
-    names(palette_fill) <- fill_var_levels_clean
-    legend_rows <- 2
-  } else {
-    # otherwise same as colour palette
-    palette_fill <- palette_colour
-    names(palette_fill) <- fill_var_levels_clean
-    legend_rows <- 1
-  }
+  palette_fill <- palette_subgroups[group_index]
   
   # create plot
   p <- tmp_data %>%
@@ -719,19 +642,8 @@ summary_plot <- local({
       aes(
         x = period,
         colour = subgroup_4,
-        fill = fill_var
+        fill = subgroup_4
       )
-    ) +
-    geom_rect(
-      # xmin = 3.7, xmax = 7,
-      aes(
-        xmin = xmin_val, xmax = xmax_val,
-        ymax = lee_conf.low, ymin = lee_conf.high,
-        fill = fill_var
-      ),
-      alpha = 0.2,
-      # colour = NA,
-      linetype = "solid"
     ) +
     geom_hline(aes(yintercept=1), colour='grey') +
     geom_line(
@@ -755,7 +667,6 @@ summary_plot <- local({
     facet_grid(
       outcome ~ ., 
       switch = "y", 
-      # scales = "free", 
       space = "free_x"
     ) +
     scale_x_continuous(
@@ -765,13 +676,13 @@ summary_plot <- local({
       expand = c(0, 0)
     ) +
     scale_y_log10(
-      name = y_lab_adj,
+      name = y_lab,
       breaks = primary_vax_y1[["breaks"]],
       limits = primary_vax_y1[["limits"]],
       oob = scales::oob_keep,
       sec.axis = sec_axis(
         ~(1-.),
-        name=y_lab_adj_2,
+        name=y_lab_2,
         breaks = primary_vax_y2[["breaks"]],
         labels = function(x){formatpercent100(x, 1)}
       )
@@ -779,18 +690,18 @@ summary_plot <- local({
     labs(
       x = x_lab
     ) +
-    scale_fill_manual(values = palette_fill, name = NULL) +
-    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
+    scale_color_manual(values = palette_colour, name = NULL) + 
+    scale_fill_manual(values = palette_fill, name = NULL, guide = "none") +
     scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
     scale_linetype_manual(values = palette_linetype, guide = "none") +
     guides(
-      fill = guide_legend(
+      colour = guide_legend(
         title = NULL,
-        nrow = 2,
+        nrow = 1,
         override.aes = list(
-          colour = rep(palette_colour,times=legend_rows),
-          shape = rep(palette_shape,times=legend_rows),
-          linetype = rep(palette_linetype,time=legend_rows),
+          colour = palette_colour,
+          shape = palette_shape,
+          linetype = palette_linetype,
           fill = palette_fill
         )
       )
@@ -822,11 +733,7 @@ summary_plot <- local({
       plot.caption = element_text(hjust = 0, face= "italic"),
       
       legend.position = "bottom",
-      # legend.direction = "vertical",
-      # big margins to cover up grid lines
-      # legend.margin = margin(t = 30, r = 20, b = 30, l = 10),
       legend.key.width = unit(2, 'cm'),
-      # legend.position = "bottom",
       legend.text = element_text(size=10)
     ) 
   
