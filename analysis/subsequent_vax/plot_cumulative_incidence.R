@@ -8,28 +8,18 @@ library(lubridate)
 study_parameters <- readr::read_rds(
   here::here("analysis", "lib", "study_parameters.rds"))
 
+
 ################################################################################
 
 # if running locally read extracted data:
 if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
 
   if (!exists("release_folder")) release_folder <- here::here("output", "release_objects")
-  image_path <- here::here(release_folder)
+  image_path <- file.path(release_folder, "checking")
 
   survtable_redacted <- readr::read_csv(
     here::here(release_folder, "survtable_redacted.csv")) %>%
-    mutate(across(subgroup,
-                  ~ case_when(
-                    str_detect(.x, "65") ~ 1,
-                    str_detect(.x, "18-64") ~ 2,
-                    str_detect(.x, "40-64") ~ 3,
-                    str_detect(.x, "18-39") ~ 4,
-                    TRUE ~ NA_real_
-                  ))) %>%
-    mutate(across(subgroup,
-                  factor,
-                  levels = subgroup_labels,
-                  labels = subgroups_long_wrap))
+    mutate(across(subgroup, factor))
 
 } else { # else derive the data
   
