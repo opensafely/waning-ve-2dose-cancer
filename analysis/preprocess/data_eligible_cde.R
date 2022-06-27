@@ -170,7 +170,7 @@ exclusion_e <- function(group) {
   # remove if died before start_1_date
   data <- data %>%
     filter(
-      no_evidence_of(death_date, start_1_date)
+      no_evidence_of(death_date, start_1_date + days(1))
     ) 
   
   eligibility_count_e <- eligibility_count_e %>%
@@ -182,12 +182,12 @@ exclusion_e <- function(group) {
   # remove if deregistered before start_1_date
   data <- data %>%
     filter(
-      no_evidence_of(dereg_date, start_1_date)
+      no_evidence_of(dereg_date, start_1_date + days(1))
     ) 
   
   eligibility_count_e <- eligibility_count_e %>%
     add_row(
-      description = as.character(glue("{group}: Deregistrered before start_1_date.")),
+      description = as.character(glue("{group}: Deregistered before start_1_date.")),
       n =  n_distinct(data$patient_id)
     )
   
@@ -196,7 +196,7 @@ exclusion_e <- function(group) {
     
     data <- data %>%
       filter(
-        no_evidence_of(covid_vax_3_date, start_1_date)
+        no_evidence_of(covid_vax_3_date, start_1_date + days(1))
       ) 
     
     eligibility_count_e <- eligibility_count_e %>%
@@ -209,7 +209,7 @@ exclusion_e <- function(group) {
     
     data <- data %>%
       filter(
-        no_evidence_of(covid_vax_1_date, start_1_date)
+        no_evidence_of(covid_vax_1_date, start_1_date + days(1))
       ) 
     
     eligibility_count_e <- eligibility_count_e %>%
