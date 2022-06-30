@@ -567,6 +567,7 @@ try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
 try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=1))
 
 # subgroups 1:2, fill by age i.e. subgroups 5:8)
+try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=1))
 try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=3))
 
 
@@ -741,4 +742,4 @@ summary_plot <- local({
          filename = file.path(release_folder, "checking", "hr_subgroups_lee.png"),
          width=page_width, height=16, units="cm")
   
-(boxes)})
+})
