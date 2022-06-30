@@ -2,6 +2,11 @@ library(tidyverse)
 library(glue)
 
 ################################################################################
+# read subgroups
+subgroups <- readr::read_rds(
+  here::here("analysis", "lib", "subgroups.rds"))
+
+
 # eligibility_count_all <- readr::read_csv(
 #   here::here(release_folder, "eligibility_count_all.csv")
 # )
@@ -41,7 +46,8 @@ event_counts %>%
 ################################################################################
 estimates_all <- readr::read_csv(
   here::here(release_folder, "estimates_all.csv")
-)
+) %>%
+  mutate(across(c(estimate, conf.low, conf.high), exp)) 
 
 estimates_all %>%
   filter(
@@ -57,14 +63,36 @@ estimates_all %>%
   mutate(min_k = min(period), max_k = max(period)) %>%
   ungroup() %>%
   filter(period==min_k|period==max_k) %>%
-  mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-exp(.x)),1))) %>%
+  mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-.x),1)))  %>%
   transmute(
     subgroup, outcome, period, 
     value = glue("{estimate}% ({conf.low}-{conf.high})")
   )
 
 
+# percentage point differences in 3-6 o 23-26
+ppoint <- estimates_all %>%
+  filter(
+    variable == "k",
+    subgroup %in% 3:4,
+    !reference_row,
+    model=="unadjusted",
+    outcome %in% c("postest", "covidadmitted", "coviddeath"),
+    comparison=="both",
+    prior
+    ) %>%
+  mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-.x),1)))  
 
+ppoint %>%
+  select(subgroup, outcome, period, estimate) %>%
+  pivot_wider(
+    names_from = period,
+    values_from = estimate
+  ) %>%
+  mutate(
+    `1` - `6`,
+    `2` - `6`
+    )
 
 
 
@@ -74,9 +102,9 @@ metareg_results_rhr <- readr::read_rds(
 
 metareg_results_rhr %>% 
   filter(
-    subgroup%in% subgroups[1:2],
+    subgroup %in% subgroups[3:4],
     comparison=="both", 
-    outcome=="postest",
+    outcome%in%c("postest","covidadmitted", "coviddeath"),
     prior,
     model==1
     ) %>%
