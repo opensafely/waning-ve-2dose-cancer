@@ -91,7 +91,8 @@ data_ar_arm_group <- data_counts_arm_group %>%
   ungroup() %>%
   # redact if <=5 events
   mutate(across(c("events", "ar_crude", "ar_weighted"), 
-                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
+                ~if_else(events <= 5, NA_real_, as.numeric(.x)))) %>%
+  select(-events)
 
 readr::write_csv(
   data_ar_arm_group,
@@ -126,7 +127,8 @@ data_ar_arm_weight <- data_counts_arm_group %>%
   ungroup() %>%
   # redact if <=5 events
   mutate(across(c("events", "ar_crude", "ar_weighted"), 
-                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
+                ~if_else(events <= 5, NA_real_, as.numeric(.x)))) %>%
+  select(-events)
 
 readr::write_csv(
   data_ar_arm_weight,
@@ -171,7 +173,8 @@ data_ar <- data_counts %>%
   ungroup() %>%
   # redact if <=5 events
   mutate(across(c("events", "ar_crude", "ar_weighted"), 
-                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
+                ~if_else(events <= 5, NA_real_, as.numeric(.x)))) %>%
+  select(-events)
 
 readr::write_csv(
   data_ar,
