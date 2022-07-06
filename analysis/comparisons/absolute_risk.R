@@ -83,11 +83,15 @@ data_ar_arm_group <- data_counts_arm_group %>%
   ) %>%
   group_by(subgroup, arm, outcome, k) %>%
   summarise(
+    events = sum(events),
     ar_crude = sum(events)/sum(n),
     ar_weighted = weighted.mean(x = ar, w = weight),
     .groups = "keep"
   ) %>%
-  ungroup() 
+  ungroup() %>%
+  # redact if <=5 events
+  mutate(across(c("events", "ar_crude", "ar_weighted"), 
+                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
 
 readr::write_csv(
   data_ar_arm_group,
@@ -114,11 +118,15 @@ data_ar_arm_weight <- data_counts_arm_group %>%
   ) %>%
   group_by(subgroup, outcome, k) %>%
   summarise(
+    events = sum(events),
     ar_crude = sum(events)/sum(n),
     ar_weighted = weighted.mean(x = ar, w = weight),
     .groups = "keep"
   ) %>%
-  ungroup() 
+  ungroup() %>%
+  # redact if <=5 events
+  mutate(across(c("events", "ar_crude", "ar_weighted"), 
+                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
 
 readr::write_csv(
   data_ar_arm_weight,
@@ -155,11 +163,15 @@ data_ar <- data_counts %>%
   ) %>%
   group_by(subgroup, outcome, k) %>%
   summarise(
+    events = sum(events),
     ar_crude = sum(events)/sum(n),
     ar_weighted = weighted.mean(x = ar, w = weight),
     .groups = "keep"
   ) %>%
-  ungroup() 
+  ungroup() %>%
+  # redact if <=5 events
+  mutate(across(c("events", "ar_crude", "ar_weighted"), 
+                ~if_else(events <= 5, NA_real_, as.numeric(.x))))
 
 readr::write_csv(
   data_ar,
