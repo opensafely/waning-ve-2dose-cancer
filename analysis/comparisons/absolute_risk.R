@@ -90,9 +90,14 @@ data_ar_arm_group <- data_counts_arm_group %>%
   ) %>%
   ungroup() %>%
   # redact if <=5 events
+  # if redact one arm, redact other too to avoid potential for back calculation
+  mutate(redact = events <= 5) %>%
+  group_by(subgroup, outcome, k) %>%
+  mutate(redact = as.logical(max(redact))) %>%
+  ungroup() %>%
   mutate(across(c("events", "ar_crude", "ar_weighted"), 
-                ~if_else(events <= 5, NA_real_, as.numeric(.x)))) %>%
-  select(-events)
+                ~if_else(redact, NA_real_, as.numeric(.x)))) %>%
+  select(-events, -redact)
 
 readr::write_csv(
   data_ar_arm_group,
