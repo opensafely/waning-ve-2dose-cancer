@@ -25,10 +25,38 @@ table1_main_TRUE_REDACTED <- readr::read_csv(
 cols <- names(table1_main_TRUE_REDACTED[,3:8])
 counts <- as.numeric(str_remove_all((unlist(table1_main_TRUE_REDACTED[1,3:8])), ","))
 names(counts) <- cols
+# BNT162b2
+sum(counts[c(1,4)])
+# ChAdOx1
+sum(counts[c(2,5)])
+# unvax
+sum(counts[c(3,6)])
+
+# BNT162b2
+100*counts[1]/sum(counts[c(1,4)])
+# ChAdOx1
+100*counts[2]/sum(counts[c(2,5)])
+# unvax
+100*counts[3]/sum(counts[c(3,6)])
+
 # cancer cohort:
 scales::comma(sum(counts[str_detect(names(counts), "_1")]))
 # general cohort
 scales::comma(sum(counts[str_detect(names(counts), "_2")]))
+
+table1_age_TRUE_REDACTED <- readr::read_csv(
+  "release20220622/table1_age_TRUE_REDACTED.csv"
+)
+
+table1_age_TRUE_REDACTED %>% 
+  filter(Variable=="JCVI group", Characteristic %in% c("04b", "06")) %>% 
+  arrange(Characteristic) %>%
+  select(ends_with(as.character(c(5,7)))) %>%
+  mutate(across(ends_with(as.character(c(5,7))),
+                ~as.integer(str_remove(str_extract(.x, "\\d+\\%"), "\\%"))
+                )
+         ) %>%
+  summarise(across(everything(), sum))
 
 
 ################################################################################
@@ -37,9 +65,69 @@ event_counts <- readr::read_csv(
 )
 
 event_counts %>%
-  filter(outcome == "coviddeath", k==1) %>%
-  group_by(subgroup) %>%
-  summarise(total = scales::comma(sum(n)))
+  filter(
+    outcome == "postest", 
+    k %in% c(1,6),
+    subgroup %in% c("cancer", "noncancer")
+    ) %>%
+  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
+  group_by(subgroup, arm, k) %>%
+  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
+  ungroup() %>%
+  select(-personyears) %>%
+  rename(
+    cohort = subgroup,
+    group = arm, 
+    period = k
+  ) %>%
+  mutate(
+    absolute_risk = round(events/n, 5)#,
+    # incidence_rate_per1000py = 1000*round(events/personyears,3)
+    ) %>%
+  kableExtra::kable("pipe")
+
+event_counts %>%
+  filter(
+    outcome == "covidadmitted", 
+    k %in% c(1,6),
+    subgroup %in% c("cancer", "noncancer")
+  ) %>%
+  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
+  group_by(subgroup, k) %>%
+  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
+  ungroup() %>%
+  select(-personyears) %>%
+  rename(
+    cohort = subgroup,
+    period = k
+  ) %>%
+  mutate(
+    absolute_risk = round(events/n, 5)#,
+    # incidence_rate_per1000py = 1000*round(events/personyears,3)
+  ) %>%
+  kableExtra::kable("pipe")
+
+event_counts %>%
+  filter(
+    outcome == "covidadmitted", 
+    k %in% c(1,6),
+    subgroup %in% c("cancer", "noncancer") |
+    subgroup %in% c("cancer_18-69", "cancer_70+", "noncancer_18-69", "noncancer_70+")
+  ) %>%
+  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
+  group_by(subgroup, k) %>%
+  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
+  ungroup() %>%
+  select(-personyears) %>%
+  rename(
+    cohort = subgroup,
+    period = k
+  ) %>%
+  mutate(
+    absolute_risk = round(events/n, 5)#,
+    # incidence_rate_per1000py = 1000*round(events/personyears,3)
+  ) %>%
+  kableExtra::kable("pipe")
 
 
 
@@ -66,7 +154,11 @@ estimates_all %>%
   mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-.x),1)))  %>%
   transmute(
     subgroup, outcome, period, 
-    value = glue("{estimate}% ({conf.low}-{conf.high})")
+    value = glue("{estimate}% ({conf.high}, {conf.low})")
+  ) %>%
+  pivot_wider(
+    names_from = subgroup,
+    values_from = value
   )
 
 
@@ -121,3 +213,20 @@ metareg_results_rhr %>%
   ) %>%
   mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
   mutate(value = glue("{rhr} [{rhr_lower}-{rhr_higher}]"))
+
+
+metareg_results_rhr %>% 
+  filter(
+    subgroup%in% subgroups[5:8],
+    comparison=="both", 
+    outcome%in%c("postest","covidadmitted", "coviddeath"),
+    prior,
+    model==1
+  ) %>%
+  mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
+  mutate(value = glue("{rhr} [{rhr_lower}-{rhr_higher}]")) %>%
+  select(outcome, subgroup, value) %>%
+  pivot_wider(
+    names_from = subgroup,
+    values_from = value
+  )
