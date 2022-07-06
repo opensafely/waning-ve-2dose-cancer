@@ -1,4 +1,4 @@
-         dummy_data_vax  generate_study_population     data_input_process  data_eligible_ab      data_2nd_vax_dates  plot_2nd_vax_dates  data_eligible_cde    generate_covs_data     data_covariates_process  data_min_max_fu     plot_cumulative_incidence     table1     data_tte_process  event_counts                 preflight_BNT162b2_1_TRUE_anytest 
+         dummy_data_vax  generate_study_population     data_input_process  data_eligible_ab      data_2nd_vax_dates  plot_2nd_vax_dates  data_eligible_cde    generate_covs_data     data_covariates_process  data_min_max_fu     plot_cumulative_incidence     table1     data_tte_process  event_counts  absolute_risk                 preflight_BNT162b2_1_TRUE_anytest 
 apply_model_cox_BNT162b2_1_TRUE_anytest   preflight_BNT162b2_1_TRUE_postest 
 apply_model_cox_BNT162b2_1_TRUE_postest   preflight_BNT162b2_1_TRUE_covidadmitted 
 apply_model_cox_BNT162b2_1_TRUE_covidadmitted   preflight_BNT162b2_1_TRUE_coviddeath 

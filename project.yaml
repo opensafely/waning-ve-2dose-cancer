@@ -201,7 +201,18 @@ actions:
     - data_tte_process
     outputs:
       moderately_sensitive:
-        event_couts: output/tte/tables/event_counts.csv
+        event_counts: output/tte/tables/event_counts.csv
+
+  ## absolute risk 
+
+  absolute_risk:
+    run: r:latest analysis/comparisons/absolute_risk.R
+    needs:
+    - data_covariates_process
+    - data_tte_process
+    outputs:
+      moderately_sensitive:
+        absolute_risk: output/tte/tables/ar_*.csv
 
   ## #################################### 
   ## apply models 

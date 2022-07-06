@@ -534,7 +534,17 @@ actions_list <- splice(
     run = "r:latest analysis/comparisons/event_counts.R",
     needs = list("data_tte_process"),
     moderately_sensitive = list(
-      event_couts = "output/tte/tables/event_counts.csv"
+      event_counts = "output/tte/tables/event_counts.csv"
+    )
+  ),
+  
+  comment("absolute risk"),
+  action(
+    name = "absolute_risk",
+    run = "r:latest analysis/comparisons/absolute_risk.R",
+    needs = list("data_covariates_process", "data_tte_process"),
+    moderately_sensitive = list(
+      absolute_risk = "output/tte/tables/ar_*.csv"
     )
   ),
 
