@@ -4,6 +4,7 @@ ceiling_any <- function(x, to=1){
   # round to nearest 100 millionth to avoid floating point errors
   ceiling(plyr::round_any(x/to, 1/100000000))*to
 }
+
 # Kaplan-Meier estimates, rounded for disclosure control ----
 #' Rounded Kaplan-Meier curves
 #'
