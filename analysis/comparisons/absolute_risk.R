@@ -3,7 +3,7 @@ library(tidyverse)
 library(glue)
 
 ###############################################################################
-# age- and sex- standardised absolute risk
+# standardised absolute risk (AR) in cancer and noncancer cohorts
 
 ###############################################################################
 # read outcomes
@@ -40,7 +40,7 @@ data_tte <- bind_rows(
   mutate(across(arm, ~if_else(.x %in% "unvax", as.character(.x), "vax"))) %>%
   select(patient_id, subgroup, arm, k, outcome, status)
 
-# read age and sex data
+# define age bands
 age_bands <- c(-Inf, seq(25,90,5), Inf)
 lower_bands <- as.character(age_bands[-length(age_bands)])
 lower_bands[1] <- "18"
@@ -48,13 +48,15 @@ upper_bands <- as.character(age_bands[-1] - 1)
 upper_bands[length(upper_bands)] <- "120"
 age_band_labs <- str_c(lower_bands, upper_bands, sep = "-")
 
+# read age and sex data
 data_all <- readr::read_rds(
   here::here("output", "data", "data_all.rds")) %>%
   select(patient_id, age, sex) %>%
   mutate(across(age, ~cut(.x, breaks = age_bands, labels = age_band_labs)))
 
 ###############################################################################
-# risk grouped by arm
+### age- and sex-standardised AR within vaccine arms
+# AR grouped by arm, age, sex
 data_counts_arm_group <- data_tte %>%
   left_join(data_all, by = "patient_id") %>% 
   group_by(subgroup, arm, outcome, k, age, sex) %>%
@@ -76,7 +78,8 @@ weights_arm_group <- data_counts_arm_group %>%
   ungroup() %>%
   select(arm, outcome, k, age, sex, weight = prop)
 
-# calculate ar in both groups, weighted by sex:age_band distribution in noncancer pop
+# calculate AR in both arms, 
+# weighted by sex:age_band distribution in noncancer pop
 data_ar_arm_group <- data_counts_arm_group %>%
   left_join(
     weights_arm_group, by = c("arm", "outcome", "k", "age", "sex")
@@ -91,6 +94,7 @@ data_ar_arm_group <- data_counts_arm_group %>%
   ungroup() %>%
   # redact if <=5 events
   # if redact one arm, redact other too to avoid potential for back calculation
+  # from previously released results
   mutate(redact = events <= 5) %>%
   group_by(subgroup, outcome, k) %>%
   mutate(redact = as.logical(max(redact))) %>%
@@ -104,9 +108,7 @@ readr::write_csv(
   here::here("output", "tte", "tables", "ar_arm_group.csv")
   )
 
-###
-# don't group by arm, but include in weights
-
+### arm-, age- and sex-standardised AR
 # within each outcome and comparison period, 
 # get proportion of general population in each arm:sex:age_band
 weights_arm_weight <- data_counts_arm_group %>%
@@ -117,7 +119,8 @@ weights_arm_weight <- data_counts_arm_group %>%
   ungroup() %>%
   select(arm, outcome, k, age, sex, weight = prop)
 
-# calculate ar in both groups, weighted by sex:age_band distribution in noncancer pop
+# calculate AR, 
+# weighted by arm:sex:age_band distribution in noncancer pop
 data_ar_arm_weight <- data_counts_arm_group %>%
   left_join(
     weights_arm_weight, by = c("arm", "outcome", "k", "age", "sex")
@@ -140,8 +143,8 @@ readr::write_csv(
   here::here("output", "tte", "tables", "ar_arm_weight.csv")
 )
 
-###
-# don't group or weight by arm
+### age- and sex-standardised AR
+# AR grouped by age, sex
 data_counts <- data_tte %>%
   left_join(data_all, by = "patient_id") %>% 
   group_by(subgroup, outcome, k, age, sex) %>%
@@ -163,7 +166,8 @@ arm_weights <- data_counts %>%
   mutate(prop = n/total) %>%
   select(outcome, k, age, sex, weight = prop)
 
-# calculate ar in both groups, weighted by sex:age_band distribution in noncancer pop
+# calculate AR in both arms, 
+# weighted by sex:age_band distribution in noncancer pop
 data_ar <- data_counts %>%
   left_join(
     arm_weights, by = c("outcome", "k", "age", "sex")
