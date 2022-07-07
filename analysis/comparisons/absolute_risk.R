@@ -3,8 +3,8 @@
 
 # three options:
 
-# 1. age- and sex-standardised within cohort x vaccine arm
-# 2. vaccine arm-, age- and sex-standardised within cohort
+# 1. age- and sex-standardised within cohort x arm
+# 2. arm-, age- and sex-standardised within cohort
 # 3. age- and sex-standardised within cohort
 
 ###############################################################################
@@ -81,7 +81,6 @@ weights_arm_group <- data_counts_arm_group %>%
   filter(cohort == "noncancer") %>%
   group_by(outcome, arm, k) %>%
   mutate(prop = n/sum(n)) %>%
-  # mutate(total = sum(n)) %>%
   ungroup() %>%
   select(arm, outcome, k, age, sex, weight = prop)
 
@@ -126,7 +125,6 @@ weights_arm_weight <- data_counts_arm_group %>%
   filter(cohort == "noncancer") %>%
   group_by(outcome, k) %>%
   mutate(prop = n/sum(n)) %>%
-  # mutate(total = sum(n)) %>%
   ungroup() %>%
   select(arm, outcome, k, age, sex, weight = prop)
 
