@@ -480,6 +480,16 @@ actions_list <- splice(
     )
   ),
   
+  comment("cancer source"),
+  action(
+    name = "cancer_source",
+    run = "r:latest analysis/report/cancer_source.R",
+    needs = list("generate_covs_data"),
+    moderately_sensitive = list(
+      event_counts = "output/report/cancer_source.txt"
+    )
+  ),
+  
   comment("####################################",
           "subsequent vaccination", 
           "####################################"),

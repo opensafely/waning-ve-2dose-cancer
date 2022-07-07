@@ -149,6 +149,16 @@ actions:
       moderately_sensitive:
         data_min_max_fu_csv: output/lib/data_min_max_fu.csv
 
+  ## cancer source 
+
+  cancer_source:
+    run: r:latest analysis/report/cancer_source.R
+    needs:
+    - generate_covs_data
+    outputs:
+      moderately_sensitive:
+        event_counts: output/report/cancer_source.txt
+
   ## #################################### 
   ## subsequent vaccination 
   ## #################################### 
