@@ -32,6 +32,10 @@ source(here::here("analysis", "post_release", "data_metareg_k.R"))
 rm(list = ls()[ls() != "release_folder"])
 
 ### Results plots
+# absolute risk
+source(here::here("analysis", "post_release", "plot_ar.R"))
+rm(list = ls()[ls() != "release_folder"])
+
 # all hazard ratio plots
 source(here::here("analysis", "post_release", "plot_cox_all.R"))
 rm(list = ls()[ls() != "release_folder"])
