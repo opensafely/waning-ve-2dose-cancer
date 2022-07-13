@@ -10,6 +10,6 @@ venv/
 .Rhistory
 .Rproj.user/
 
-release20220622
+release*
 appendix.log
 appendix.pdf
