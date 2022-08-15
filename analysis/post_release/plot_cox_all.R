@@ -561,7 +561,7 @@ plot_subgroups <- function(group, include_prior_infection, model) {
 ## cancer vs noncancer, main comparison (Lee)
 try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=1))
 ## haem vs solid, main comparison (Lee)
-try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
+try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=1))
 
 # subgroups 1:2, fill by prior
 try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=1))
