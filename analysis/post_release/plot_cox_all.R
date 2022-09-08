@@ -88,8 +88,8 @@ x_lab <- "Weeks since second dose"
 
 # legend options
 legend_width <- 15
-subgroup_plot_labels <- str_replace(subgroups, "noncancer", "General cohort")
-subgroup_plot_labels <- str_replace(subgroup_plot_labels, "cancer", "Cancer cohort")
+subgroup_plot_labels <- str_replace(subgroups, "^noncancer$", "Non-cancer cohort")
+subgroup_plot_labels <- str_replace(subgroup_plot_labels, "^cancer$", "Cancer cohort")
 subgroup_plot_labels <- str_replace(subgroup_plot_labels, "haem", "Haematological malignancy")
 subgroup_plot_labels <- str_replace(subgroup_plot_labels, "solid", "Solid organ malignancy")
 subgroup_plot_labels <- str_replace(subgroup_plot_labels, "_18-69", ", 18-69 years")
@@ -102,10 +102,10 @@ plot_data <- estimates_all %>%
     !is.na(estimate),
     variable %in% "k",
     # keep only outcomes of interest
-    outcome %in% outcomes
+    outcome %in% outcomes,
+    model %in% c("unadjusted", "max_adjusted")
   ) %>%
   mutate(k=as.integer(label)) %>%
-  mutate(across(c(estimate, conf.low, conf.high), exp)) %>%
   mutate(across(subgroup,
                 factor,
                 levels = subgroup_labels,
@@ -116,6 +116,7 @@ plot_data <- estimates_all %>%
       select(subgroup, comparison, outcome, model, prior, loghr1, logrhr) 
   ) %>%
   mutate(line = loghr1 + (k-1)*logrhr) %>%
+  mutate(across(c(estimate, conf.low, conf.high, line), exp)) %>%
   mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
   # only plot line within range of estimates
   mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
@@ -158,7 +159,8 @@ plot_data <- estimates_all %>%
                 factor,
                 levels = comparisons_old,
                 labels = comparisons_new
-  )) 
+  )) %>%
+  droplevels()
 
 # # add metaregression data if available
 # if (metareg) {
@@ -242,13 +244,11 @@ names(linetypes_subgroups) <- subgroup_plot_labels[1:4]
 # colour palettes
 palette_subgroups <- brewer.pal(n=4, name="Set2")
 palette_unadj <- addalpha(palette_subgroups, alpha=0.2)
-palette_part <- addalpha(palette_subgroups, alpha=0.6)
-palette_max <- palette_subgroups
+palette_adj <- palette_subgroups
 names_models <- levels(plot_data$model)
 names(palette_subgroups) <- subgroup_plot_labels[1:4]
 names(palette_unadj) <- rep(names_models[1],4)
-names(palette_part) <- rep(names_models[2],4)
-names(palette_max) <- rep(names_models[3],4)
+names(palette_adj) <- rep(names_models[2],4)
 
 # breaks and lims for y-axes
 primary_vax_y1 <- list(breaks = c(0.02, 0.05, 0.2, 0.5, 1, 2), 
@@ -280,11 +280,9 @@ plot_models <- function(group, include_prior_infection) {
   
   palette_model <- c(
     palette_unadj[group_colour], 
-    palette_part[group_colour],
-    palette_max[group_colour]
+    palette_adj[group_colour]
     )
   shape_subgroup <- shapes_subgroups[group_colour]
-  # linetype_subgroup <- linetypes_subgroups[group_colour]
   
   p <- plot_data %>%
     filter(
@@ -470,19 +468,9 @@ plot_subgroups <- function(group, include_prior_infection, model) {
         labels = fill_var_levels_clean
       )
     )
-  if (length(fill_var_levels) > 2) {
-    # if using fill, add white to palette
-    palette_fill <- c(rep("white",length(palette_colour)), palette_colour)
-    names(palette_fill) <- fill_var_levels_clean
-    legend_rows <- 2
-  } else {
-    # otherwise same as colour palette
-    palette_fill <- palette_colour
-    names(palette_fill) <- fill_var_levels_clean
-    legend_rows <- 1
-  }
   
-  # create plot
+  
+  # first plot layers
   p <- tmp_data %>%
     ggplot(
       aes(
@@ -491,14 +479,34 @@ plot_subgroups <- function(group, include_prior_infection, model) {
         fill = fill_var
       )
     ) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_line(
-      aes(y = line, 
-          colour = subgroup_4, 
-          linetype = subgroup_4,
-          group = line_group
+    geom_hline(aes(yintercept=1), colour='grey')
+  
+  
+  if (length(fill_var_levels) > 2) {
+    # if using fill, add white to palette
+    palette_fill <- c(rep("white",length(palette_colour)), palette_colour)
+    names(palette_fill) <- fill_var_levels_clean
+    legend_rows <- 2
+    
+  } else {
+    # otherwise same as colour palette
+    palette_fill <- palette_colour
+    names(palette_fill) <- fill_var_levels_clean
+    legend_rows <- 1
+    
+    # add ratio of HR line if only 2 groups
+    p <- p +
+      geom_line(
+        aes(y = line, 
+            colour = subgroup_4, 
+            linetype = subgroup_4,
+            group = line_group
+        )
       )
-    ) +
+  }
+  
+  # additional layers
+  p <- p +
     geom_linerange(
       aes(ymin = conf.low, ymax = conf.high),
       position = position_dodge(width = position_dodge_val)
@@ -530,11 +538,15 @@ plot_subgroups <- function(group, include_prior_infection, model) {
     ) +
     labs(
       x = x_lab
-    ) +
-    scale_fill_manual(values = palette_fill, name = NULL) +
-    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
-    scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
-    scale_linetype_manual(values = palette_linetype, guide = "none") +
+    ) 
+  
+  if (length(fill_var_levels) <= 2) {
+    # linetype in legend
+    p <- p +
+      scale_linetype_manual(values = palette_linetype, guide = "none") 
+  }
+  
+  p <- p +
     guides(
       fill = guide_legend(
         title = NULL,
@@ -542,11 +554,13 @@ plot_subgroups <- function(group, include_prior_infection, model) {
         override.aes = list(
           colour = rep(palette_colour,times=legend_rows),
           shape = rep(palette_shape,times=legend_rows),
-          linetype = rep(palette_linetype,time=legend_rows),
           fill = palette_fill
         )
       )
     ) +
+    scale_fill_manual(values = palette_fill, name = NULL) +
+    scale_color_manual(values = palette_colour, name = NULL, guide="none") +
+    scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
     theme_bw() +
     theme(
       panel.border = element_blank(),
@@ -593,189 +607,196 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   
 }
 
+# model=1=unadjusted
+# model=2=adjusted
+
 # subgroups 1:2, no fill
 ## cancer vs noncancer, main comparison (Lee)
-try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=1))
+try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=2))
+## cancer vs noncancer, 18-69 years
+try(plot_subgroups(group=c(5,7), include_prior_infection=TRUE, model=2))
+## cancer vs noncancer, 70+ years
+try(plot_subgroups(group=c(6,8), include_prior_infection=TRUE, model=2))
+
 ## haem vs solid, main comparison (Lee)
-try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=1))
+try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
 
 # subgroups 1:2, fill by prior
-try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=1))
+try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
 
 # subgroups 1:2, fill by age i.e. subgroups 5:8)
-try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=1))
-try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=3))
+try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=2))
 
 
-##############################################################################
-# 3-6 month estimates from Lee study
-lee_data <- tribble(
-  ~subgroup_4, ~comparison, ~prior, ~outcome_unlabelled, ~model, ~lee_period, ~estimate, ~conf.low, ~conf.high, 
-  "General cohort", "Combined", TRUE, "postest", 1, "overall", 61.4, 61.4, 61.5,
-  "General cohort", "Combined", TRUE, "postest", 1, "3-6 months", 69.8, 69.8, 69.9,
-  "General cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 80.7, NA_real_, NA_real_,
-  "General cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 64.9, NA_real_, NA_real_,
-  "General cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 61.2, NA_real_, NA_real_,
-  "General cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 69.6, NA_real_, NA_real_,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "overall", 65.5, 65.1, 65.9,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "3-6 months", 47.0, 46.3, 47.6,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 90.5, NA_real_, NA_real_,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 66.8, NA_real_, NA_real_,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 42.5, NA_real_, NA_real_,
-  "Cancer cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 35.4, NA_real_, NA_real_,
-  "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "overall", 84.5, 83.6, 85.4,
-  "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "3-6 months", 74.6, 72.8, 76.3,
-  "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "overall", 93.5, 93.0, 94.0,
-  "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "3-6 months", 90.3, 89.3, 91.2
-)
-
-summary_plot <- local({
-  
-  # arguments
-  group <- 1:2
-  include_prior_infection <- TRUE
-  model <- 1
-  
-  # create subgroup_4 and age_group from subgroup
-  subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
-  tmp_data <- plot_data %>%
-    mutate(
-      subgroup_4 = str_remove(as.character(subgroup), ", .+"),
-      age_group = str_extract(as.character(subgroup), "\\d.+"),
-    ) %>%
-    mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
-    mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
-  
-  # filter data according to arguments
-  models <- levels(plot_data$model)
-  m <- model
-  tmp_data <- tmp_data %>%
-    filter(
-      comparison == "Combined",
-      subgroup %in% subgroup_plot_labels[group],
-      prior %in% include_prior_infection,
-      # !! filter_expr,
-      model %in% models[m],
-      !(outcome_unlabelled %in% c("anytest", "noncoviddeath")) 
-    ) %>%
-    select(-comparison) %>%
-    droplevels() 
-  
-  subgroup_levels_current <- levels(tmp_data$subgroup_4)
-  
-  # indexes for colour palette
-  group_index <- which(subgroup_4_levels %in% subgroup_levels_current)
-  
-  # define colour palette
-  palette_colour <- palette_subgroups[group_index]
-  # define shapes and linetypes
-  palette_shape <- shapes_subgroups[group_index]
-  palette_linetype <- linetypes_subgroups[group_index]
-  palette_fill <- palette_subgroups[group_index]
-  
-  # create plot
-  p <- tmp_data %>%
-    ggplot(
-      aes(
-        x = period,
-        colour = subgroup_4,
-        fill = subgroup_4
-      )
-    ) +
-    geom_hline(aes(yintercept=1), colour='grey') +
-    geom_line(
-      aes(y = line, 
-          colour = subgroup_4, 
-          linetype = subgroup_4,
-          group = line_group
-      )
-    ) +
-    geom_linerange(
-      aes(ymin = conf.low, ymax = conf.high),
-      position = position_dodge(width = position_dodge_val)
-    ) +
-    geom_point(
-      aes(
-        y = estimate,
-        shape = subgroup_4
-      ),
-      position = position_dodge(width = position_dodge_val)
-    ) +
-    facet_grid(
-      outcome ~ ., 
-      switch = "y", 
-      space = "free_x"
-    ) +
-    scale_x_continuous(
-      breaks = seq_along(weeks_since_2nd_vax),
-      labels = weeks_since_2nd_vax,
-      limits = c(0.5, length(weeks_since_2nd_vax) + 0.5),
-      expand = c(0, 0)
-    ) +
-    scale_y_log10(
-      name = y_lab,
-      breaks = primary_vax_y1[["breaks"]],
-      limits = primary_vax_y1[["limits"]],
-      oob = scales::oob_keep,
-      sec.axis = sec_axis(
-        ~(1-.),
-        name=y_lab_2,
-        breaks = primary_vax_y2[["breaks"]],
-        labels = function(x){formatpercent100(x, 1)}
-      )
-    ) +
-    labs(
-      x = x_lab
-    ) +
-    scale_color_manual(values = palette_colour, name = NULL) + 
-    scale_fill_manual(values = palette_fill, name = NULL, guide = "none") +
-    scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
-    scale_linetype_manual(values = palette_linetype, guide = "none") +
-    guides(
-      colour = guide_legend(
-        title = NULL,
-        nrow = 1,
-        override.aes = list(
-          colour = palette_colour,
-          shape = palette_shape,
-          linetype = palette_linetype,
-          fill = palette_fill
-        )
-      )
-    ) +
-    theme_bw() +
-    theme(
-      panel.border = element_blank(),
-      axis.line.y = element_line(colour = "black"),
-      
-      axis.text = element_text(size=10),
-      
-      axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-      axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-      axis.text.x = element_text(size=8),
-      axis.text.y = element_text(size=8),
-      
-      panel.grid.minor.x = element_blank(),
-      panel.grid.minor.y = element_blank(),
-      strip.background = element_blank(),
-      strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0),
-      strip.text = element_text(size=8),
-      
-      panel.spacing = unit(0.8, "lines"),
-      
-      plot.title = element_text(hjust = 0),
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(hjust = 0, face= "italic"),
-      
-      legend.position = "bottom",
-      legend.key.width = unit(2, 'cm'),
-      legend.text = element_text(size=10)
-    ) 
-  
-  ggsave(p,
-         filename = file.path(release_folder, "checking", "hr_subgroups_lee.png"),
-         width=page_width, height=16, units="cm")
-  
-})
+# ##############################################################################
+# # 3-6 month estimates from Lee study
+# lee_data <- tribble(
+#   ~subgroup_4, ~comparison, ~prior, ~outcome_unlabelled, ~model, ~lee_period, ~estimate, ~conf.low, ~conf.high, 
+#   "General cohort", "Combined", TRUE, "postest", 1, "overall", 61.4, 61.4, 61.5,
+#   "General cohort", "Combined", TRUE, "postest", 1, "3-6 months", 69.8, 69.8, 69.9,
+#   "General cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 80.7, NA_real_, NA_real_,
+#   "General cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 64.9, NA_real_, NA_real_,
+#   "General cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 61.2, NA_real_, NA_real_,
+#   "General cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 69.6, NA_real_, NA_real_,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "overall", 65.5, 65.1, 65.9,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "3-6 months", 47.0, 46.3, 47.6,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 90.5, NA_real_, NA_real_,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 66.8, NA_real_, NA_real_,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 42.5, NA_real_, NA_real_,
+#   "Cancer cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 35.4, NA_real_, NA_real_,
+#   "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "overall", 84.5, 83.6, 85.4,
+#   "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "3-6 months", 74.6, 72.8, 76.3,
+#   "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "overall", 93.5, 93.0, 94.0,
+#   "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "3-6 months", 90.3, 89.3, 91.2
+# )
+# 
+# summary_plot <- local({
+#   
+#   # arguments
+#   group <- 1:2
+#   include_prior_infection <- TRUE
+#   model <- 1
+#   
+#   # create subgroup_4 and age_group from subgroup
+#   subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
+#   tmp_data <- plot_data %>%
+#     mutate(
+#       subgroup_4 = str_remove(as.character(subgroup), ", .+"),
+#       age_group = str_extract(as.character(subgroup), "\\d.+"),
+#     ) %>%
+#     mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
+#     mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
+#   
+#   # filter data according to arguments
+#   models <- levels(plot_data$model)
+#   m <- model
+#   tmp_data <- tmp_data %>%
+#     filter(
+#       comparison == "Combined",
+#       subgroup %in% subgroup_plot_labels[group],
+#       prior %in% include_prior_infection,
+#       # !! filter_expr,
+#       model %in% models[m],
+#       !(outcome_unlabelled %in% c("anytest", "noncoviddeath")) 
+#     ) %>%
+#     select(-comparison) %>%
+#     droplevels() 
+#   
+#   subgroup_levels_current <- levels(tmp_data$subgroup_4)
+#   
+#   # indexes for colour palette
+#   group_index <- which(subgroup_4_levels %in% subgroup_levels_current)
+#   
+#   # define colour palette
+#   palette_colour <- palette_subgroups[group_index]
+#   # define shapes and linetypes
+#   palette_shape <- shapes_subgroups[group_index]
+#   palette_linetype <- linetypes_subgroups[group_index]
+#   palette_fill <- palette_subgroups[group_index]
+#   
+#   # create plot
+#   p <- tmp_data %>%
+#     ggplot(
+#       aes(
+#         x = period,
+#         colour = subgroup_4,
+#         fill = subgroup_4
+#       )
+#     ) +
+#     geom_hline(aes(yintercept=1), colour='grey') +
+#     geom_line(
+#       aes(y = line, 
+#           colour = subgroup_4, 
+#           linetype = subgroup_4,
+#           group = line_group
+#       )
+#     ) +
+#     geom_linerange(
+#       aes(ymin = conf.low, ymax = conf.high),
+#       position = position_dodge(width = position_dodge_val)
+#     ) +
+#     geom_point(
+#       aes(
+#         y = estimate,
+#         shape = subgroup_4
+#       ),
+#       position = position_dodge(width = position_dodge_val)
+#     ) +
+#     facet_grid(
+#       outcome ~ ., 
+#       switch = "y", 
+#       space = "free_x"
+#     ) +
+#     scale_x_continuous(
+#       breaks = seq_along(weeks_since_2nd_vax),
+#       labels = weeks_since_2nd_vax,
+#       limits = c(0.5, length(weeks_since_2nd_vax) + 0.5),
+#       expand = c(0, 0)
+#     ) +
+#     scale_y_log10(
+#       name = y_lab,
+#       breaks = primary_vax_y1[["breaks"]],
+#       limits = primary_vax_y1[["limits"]],
+#       oob = scales::oob_keep,
+#       sec.axis = sec_axis(
+#         ~(1-.),
+#         name=y_lab_2,
+#         breaks = primary_vax_y2[["breaks"]],
+#         labels = function(x){formatpercent100(x, 1)}
+#       )
+#     ) +
+#     labs(
+#       x = x_lab
+#     ) +
+#     scale_color_manual(values = palette_colour, name = NULL) + 
+#     scale_fill_manual(values = palette_fill, name = NULL, guide = "none") +
+#     scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
+#     scale_linetype_manual(values = palette_linetype, guide = "none") +
+#     guides(
+#       colour = guide_legend(
+#         title = NULL,
+#         nrow = 1,
+#         override.aes = list(
+#           colour = palette_colour,
+#           shape = palette_shape,
+#           linetype = palette_linetype,
+#           fill = palette_fill
+#         )
+#       )
+#     ) +
+#     theme_bw() +
+#     theme(
+#       panel.border = element_blank(),
+#       axis.line.y = element_line(colour = "black"),
+#       
+#       axis.text = element_text(size=10),
+#       
+#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+#       axis.text.x = element_text(size=8),
+#       axis.text.y = element_text(size=8),
+#       
+#       panel.grid.minor.x = element_blank(),
+#       panel.grid.minor.y = element_blank(),
+#       strip.background = element_blank(),
+#       strip.placement = "outside",
+#       strip.text.y.left = element_text(angle = 0),
+#       strip.text = element_text(size=8),
+#       
+#       panel.spacing = unit(0.8, "lines"),
+#       
+#       plot.title = element_text(hjust = 0),
+#       plot.title.position = "plot",
+#       plot.caption.position = "plot",
+#       plot.caption = element_text(hjust = 0, face= "italic"),
+#       
+#       legend.position = "bottom",
+#       legend.key.width = unit(2, 'cm'),
+#       legend.text = element_text(size=10)
+#     ) 
+#   
+#   ggsave(p,
+#          filename = file.path(release_folder, "checking", "hr_subgroups_lee.png"),
+#          width=page_width, height=16, units="cm")
+#   
+# })
