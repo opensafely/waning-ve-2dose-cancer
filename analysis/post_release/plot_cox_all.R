@@ -8,23 +8,9 @@ library(RColorBrewer)
 library(lubridate)
 library(glue)
 
-## import command-line arguments ----
-args <- commandArgs(trailingOnly=TRUE)
-
-if(length(args)==0){
-  metareg=TRUE
-} else{
-  metareg=FALSE
-}
-
 ################################################################################
 release_folder <- here::here("release20220622")
-if (!exists("release_folder")) {
-  release_folder <- here::here("output", "release_objects")
-  fs::dir_create(file.path(release_folder))
-}
 fs::dir_create(file.path(release_folder, "checking"))
-
 
 ################################################################################
 # read study parameters
@@ -54,6 +40,8 @@ comparisons_new <- c("BNT162b2", "ChAdOx1", "Combined")
 ################################################################################
 # read estimates data
 estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
+
+metareg_res <- readr::read_rds(file.path(release_folder, "metareg_res.rds")) 
 
 ################################################################################
 # gg plot pallete
@@ -122,47 +110,27 @@ plot_data <- estimates_all %>%
                 factor,
                 levels = subgroup_labels,
                 labels = subgroups
-  )) 
-
-# add metaregression data if available
-if (metareg) {
-  
-  # read metareg data
-  metareg_results_k <- readr::read_rds(
-    file.path(release_folder, "metareg_results_k.rds")) %>%
-    mutate(across(model,
-                  ~case_when(
-                    .x==1 ~ "unadjusted",
-                    .x==2 ~ "part_adjusted",
-                    .x==3 ~ "max_adjusted",
-                    TRUE ~ NA_character_
-                  ))) %>%
-    select(model, subgroup, comparison, outcome, prior, k, starts_with("line")) 
-  
-  plot_data <- plot_data %>%
-    left_join(
-      metareg_results_k, 
-      by = c("model", "subgroup", "comparison", "outcome", "prior", "k")
-    ) %>%
-    mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
-    # only plot line within range of estimates
-    mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
-    group_by(line_group) %>%
-    mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
-    filter(keep) %>%
-    mutate(
-      min_k = min(k_nonmiss, na.rm = TRUE),
-      max_k = max(k_nonmiss, na.rm = TRUE)
-    ) %>%
-    ungroup() %>%
-    mutate(across(line,
-                  ~ if_else(min_k <= k & k <= max_k,
-                            .x,
-                            NA_real_)))
-}
-
-# add factor labels
-plot_data <- plot_data %>%
+  )) %>%
+  left_join(
+    metareg_res %>%
+      select(subgroup, comparison, outcome, model, prior, loghr1, logrhr) 
+  ) %>%
+  mutate(line = loghr1 + (k-1)*logrhr) %>%
+  mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
+  # only plot line within range of estimates
+  mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
+  group_by(line_group) %>%
+  mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
+  filter(keep) %>%
+  mutate(
+    min_k = min(k_nonmiss, na.rm = TRUE),
+    max_k = max(k_nonmiss, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(across(line,
+                ~ if_else(min_k <= k & k <= max_k,
+                          .x,
+                          NA_real_))) %>%
   mutate(k_labelled = k) %>%
   mutate(across(k_labelled, 
                 factor, 
@@ -191,6 +159,74 @@ plot_data <- plot_data %>%
                 levels = comparisons_old,
                 labels = comparisons_new
   )) 
+
+# # add metaregression data if available
+# if (metareg) {
+#   
+#   # read metareg data
+#   metareg_results_k <- readr::read_rds(
+#     file.path(release_folder, "metareg_results_k.rds")) %>%
+#     mutate(across(model,
+#                   ~case_when(
+#                     .x==1 ~ "unadjusted",
+#                     .x==2 ~ "part_adjusted",
+#                     .x==3 ~ "max_adjusted",
+#                     TRUE ~ NA_character_
+#                   ))) %>%
+#     select(model, subgroup, comparison, outcome, prior, k, starts_with("line")) 
+#   
+#   plot_data <- plot_data %>%
+#     left_join(
+#       metareg_results_k, 
+#       by = c("model", "subgroup", "comparison", "outcome", "prior", "k")
+#     ) %>%
+#     mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
+#     # only plot line within range of estimates
+#     mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
+#     group_by(line_group) %>%
+#     mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
+#     filter(keep) %>%
+#     mutate(
+#       min_k = min(k_nonmiss, na.rm = TRUE),
+#       max_k = max(k_nonmiss, na.rm = TRUE)
+#     ) %>%
+#     ungroup() %>%
+#     mutate(across(line,
+#                   ~ if_else(min_k <= k & k <= max_k,
+#                             .x,
+#                             NA_real_)))
+# }
+
+# # add factor labels
+# plot_data <- plot_data %>%
+#   mutate(k_labelled = k) %>%
+#   mutate(across(k_labelled, 
+#                 factor, 
+#                 levels = 1:K,
+#                 labels = weeks_since_2nd_vax)) %>%
+#   mutate(across(model,
+#                 factor,
+#                 levels = c("unadjusted", "part_adjusted", "max_adjusted"),
+#                 labels = sapply(c("Stratfied Cox model, no further adjustment",
+#                                   "Stratfied Cox model, adjustment for demographic variables",
+#                                   "Stratfied Cox model, adjustment for demographic and clinical variables"),
+#                                 str_wrap, width=100))) %>%
+#   mutate(outcome_unlabelled = outcome) %>%
+#   mutate(across(outcome,
+#                 factor,
+#                 levels = unname(outcomes[outcomes_order]),
+#                 labels = str_wrap(names(outcomes[outcomes_order]), 10)
+#   )) %>%
+#   mutate(across(subgroup,
+#                 factor,
+#                 levels = subgroups,
+#                 labels = str_wrap(subgroup_plot_labels, 100)
+#   )) %>%
+#   mutate(across(comparison,
+#                 factor,
+#                 levels = comparisons_old,
+#                 labels = comparisons_new
+#   )) 
 
 #################################################################################
 # spacing of points on plot
@@ -244,7 +280,7 @@ plot_models <- function(group, include_prior_infection) {
   
   palette_model <- c(
     palette_unadj[group_colour], 
-    palette_part[group_colour], 
+    palette_part[group_colour],
     palette_max[group_colour]
     )
   shape_subgroup <- shapes_subgroups[group_colour]
