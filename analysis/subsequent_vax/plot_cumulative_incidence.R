@@ -14,7 +14,7 @@ study_parameters <- readr::read_rds(
 # if running locally read extracted data:
 if(Sys.getenv("OPENSAFELY_BACKEND") %in% "") {
 
-  if (!exists("release_folder")) release_folder <- here::here("output", "release_objects")
+  release_folder <- here::here("release20220622")
   image_path <- file.path(release_folder, "checking")
 
   survtable_redacted <- readr::read_csv(
