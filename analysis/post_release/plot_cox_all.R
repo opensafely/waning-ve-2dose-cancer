@@ -1,7 +1,6 @@
 ################################################################################
 # This script:
-# - combines estimates from all models into csv for release
-
+# generate all plots of vaccine effectiveness for the manuscript and appendix
 ################################################################################
 library(tidyverse)
 library(RColorBrewer)
@@ -161,74 +160,6 @@ plot_data <- estimates_all %>%
                 labels = comparisons_new
   )) %>%
   droplevels()
-
-# # add metaregression data if available
-# if (metareg) {
-#   
-#   # read metareg data
-#   metareg_results_k <- readr::read_rds(
-#     file.path(release_folder, "metareg_results_k.rds")) %>%
-#     mutate(across(model,
-#                   ~case_when(
-#                     .x==1 ~ "unadjusted",
-#                     .x==2 ~ "part_adjusted",
-#                     .x==3 ~ "max_adjusted",
-#                     TRUE ~ NA_character_
-#                   ))) %>%
-#     select(model, subgroup, comparison, outcome, prior, k, starts_with("line")) 
-#   
-#   plot_data <- plot_data %>%
-#     left_join(
-#       metareg_results_k, 
-#       by = c("model", "subgroup", "comparison", "outcome", "prior", "k")
-#     ) %>%
-#     mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
-#     # only plot line within range of estimates
-#     mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
-#     group_by(line_group) %>%
-#     mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
-#     filter(keep) %>%
-#     mutate(
-#       min_k = min(k_nonmiss, na.rm = TRUE),
-#       max_k = max(k_nonmiss, na.rm = TRUE)
-#     ) %>%
-#     ungroup() %>%
-#     mutate(across(line,
-#                   ~ if_else(min_k <= k & k <= max_k,
-#                             .x,
-#                             NA_real_)))
-# }
-
-# # add factor labels
-# plot_data <- plot_data %>%
-#   mutate(k_labelled = k) %>%
-#   mutate(across(k_labelled, 
-#                 factor, 
-#                 levels = 1:K,
-#                 labels = weeks_since_2nd_vax)) %>%
-#   mutate(across(model,
-#                 factor,
-#                 levels = c("unadjusted", "part_adjusted", "max_adjusted"),
-#                 labels = sapply(c("Stratfied Cox model, no further adjustment",
-#                                   "Stratfied Cox model, adjustment for demographic variables",
-#                                   "Stratfied Cox model, adjustment for demographic and clinical variables"),
-#                                 str_wrap, width=100))) %>%
-#   mutate(outcome_unlabelled = outcome) %>%
-#   mutate(across(outcome,
-#                 factor,
-#                 levels = unname(outcomes[outcomes_order]),
-#                 labels = str_wrap(names(outcomes[outcomes_order]), 10)
-#   )) %>%
-#   mutate(across(subgroup,
-#                 factor,
-#                 levels = subgroups,
-#                 labels = str_wrap(subgroup_plot_labels, 100)
-#   )) %>%
-#   mutate(across(comparison,
-#                 factor,
-#                 levels = comparisons_old,
-#                 labels = comparisons_new
-#   )) 
 
 #################################################################################
 # spacing of points on plot
@@ -401,16 +332,6 @@ plot_subgroups <- function(group, include_prior_infection, model) {
     mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
     mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
   
-  # # filter subgroups and prior infection
-  # filter_str <- sapply(
-  #   seq_along(group),
-  #   function(x)
-  #     glue("(subgroup == subgroups[{group[x]}] & prior == include_prior_infection[{x}])")
-  # )
-  # filter_str <- str_c(filter_str, collapse = " | ")
-  # filter_expr <- rlang::parse_expr(filter_str)
-  # 
-  
   # filter data according to arguments
   models <- levels(plot_data$model)
   m <- model
@@ -457,8 +378,6 @@ plot_subgroups <- function(group, include_prior_infection, model) {
   ))  
   fill_var_levels_clean <- str_replace(fill_var_levels, "TRUE", "prior infection included")
   fill_var_levels_clean <- str_replace(fill_var_levels_clean, "FALSE", "prior infection excluded")
-  # fill_var_levels_clean <- str_replace(fill_var_levels_clean, "18-69", "18-69 years")
-  # fill_var_levels_clean <- str_replace(fill_var_levels_clean, "70\\+", "70\\+ years")
   # derive variable  
   tmp_data <- tmp_data %>% 
     mutate(
@@ -588,11 +507,7 @@ plot_subgroups <- function(group, include_prior_infection, model) {
       plot.caption = element_text(hjust = 0, face= "italic"),
       
       legend.position = "bottom",
-      # legend.direction = "vertical",
-      # big margins to cover up grid lines
-      # legend.margin = margin(t = 30, r = 20, b = 30, l = 10),
       legend.key.width = unit(2, 'cm'),
-      # legend.position = "bottom",
       legend.text = element_text(size=10)
     ) 
   
@@ -626,177 +541,3 @@ try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
 
 # subgroups 1:2, fill by age i.e. subgroups 5:8)
 try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=2))
-
-
-# ##############################################################################
-# # 3-6 month estimates from Lee study
-# lee_data <- tribble(
-#   ~subgroup_4, ~comparison, ~prior, ~outcome_unlabelled, ~model, ~lee_period, ~estimate, ~conf.low, ~conf.high, 
-#   "General cohort", "Combined", TRUE, "postest", 1, "overall", 61.4, 61.4, 61.5,
-#   "General cohort", "Combined", TRUE, "postest", 1, "3-6 months", 69.8, 69.8, 69.9,
-#   "General cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 80.7, NA_real_, NA_real_,
-#   "General cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 64.9, NA_real_, NA_real_,
-#   "General cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 61.2, NA_real_, NA_real_,
-#   "General cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 69.6, NA_real_, NA_real_,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "overall", 65.5, 65.1, 65.9,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "3-6 months", 47.0, 46.3, 47.6,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "0-8 weeks", 90.5, NA_real_, NA_real_,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "8-16 weeks", 66.8, NA_real_, NA_real_,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "16-24 weeks", 42.5, NA_real_, NA_real_,
-#   "Cancer cohort", "Combined", TRUE, "postest", 1, "24-32 weeks", 35.4, NA_real_, NA_real_,
-#   "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "overall", 84.5, 83.6, 85.4,
-#   "Cancer cohort", "Combined", TRUE, "covidadmitted", 1, "3-6 months", 74.6, 72.8, 76.3,
-#   "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "overall", 93.5, 93.0, 94.0,
-#   "Cancer cohort", "Combined", TRUE, "coviddeath", 1, "3-6 months", 90.3, 89.3, 91.2
-# )
-# 
-# summary_plot <- local({
-#   
-#   # arguments
-#   group <- 1:2
-#   include_prior_infection <- TRUE
-#   model <- 1
-#   
-#   # create subgroup_4 and age_group from subgroup
-#   subgroup_4_levels <- levels(plot_data$subgroup)[1:4]
-#   tmp_data <- plot_data %>%
-#     mutate(
-#       subgroup_4 = str_remove(as.character(subgroup), ", .+"),
-#       age_group = str_extract(as.character(subgroup), "\\d.+"),
-#     ) %>%
-#     mutate(across(subgroup_4, factor, levels = subgroup_4_levels)) %>%
-#     mutate(across(age_group, factor, levels = c("18-69 years", "70+ years")))
-#   
-#   # filter data according to arguments
-#   models <- levels(plot_data$model)
-#   m <- model
-#   tmp_data <- tmp_data %>%
-#     filter(
-#       comparison == "Combined",
-#       subgroup %in% subgroup_plot_labels[group],
-#       prior %in% include_prior_infection,
-#       # !! filter_expr,
-#       model %in% models[m],
-#       !(outcome_unlabelled %in% c("anytest", "noncoviddeath")) 
-#     ) %>%
-#     select(-comparison) %>%
-#     droplevels() 
-#   
-#   subgroup_levels_current <- levels(tmp_data$subgroup_4)
-#   
-#   # indexes for colour palette
-#   group_index <- which(subgroup_4_levels %in% subgroup_levels_current)
-#   
-#   # define colour palette
-#   palette_colour <- palette_subgroups[group_index]
-#   # define shapes and linetypes
-#   palette_shape <- shapes_subgroups[group_index]
-#   palette_linetype <- linetypes_subgroups[group_index]
-#   palette_fill <- palette_subgroups[group_index]
-#   
-#   # create plot
-#   p <- tmp_data %>%
-#     ggplot(
-#       aes(
-#         x = period,
-#         colour = subgroup_4,
-#         fill = subgroup_4
-#       )
-#     ) +
-#     geom_hline(aes(yintercept=1), colour='grey') +
-#     geom_line(
-#       aes(y = line, 
-#           colour = subgroup_4, 
-#           linetype = subgroup_4,
-#           group = line_group
-#       )
-#     ) +
-#     geom_linerange(
-#       aes(ymin = conf.low, ymax = conf.high),
-#       position = position_dodge(width = position_dodge_val)
-#     ) +
-#     geom_point(
-#       aes(
-#         y = estimate,
-#         shape = subgroup_4
-#       ),
-#       position = position_dodge(width = position_dodge_val)
-#     ) +
-#     facet_grid(
-#       outcome ~ ., 
-#       switch = "y", 
-#       space = "free_x"
-#     ) +
-#     scale_x_continuous(
-#       breaks = seq_along(weeks_since_2nd_vax),
-#       labels = weeks_since_2nd_vax,
-#       limits = c(0.5, length(weeks_since_2nd_vax) + 0.5),
-#       expand = c(0, 0)
-#     ) +
-#     scale_y_log10(
-#       name = y_lab,
-#       breaks = primary_vax_y1[["breaks"]],
-#       limits = primary_vax_y1[["limits"]],
-#       oob = scales::oob_keep,
-#       sec.axis = sec_axis(
-#         ~(1-.),
-#         name=y_lab_2,
-#         breaks = primary_vax_y2[["breaks"]],
-#         labels = function(x){formatpercent100(x, 1)}
-#       )
-#     ) +
-#     labs(
-#       x = x_lab
-#     ) +
-#     scale_color_manual(values = palette_colour, name = NULL) + 
-#     scale_fill_manual(values = palette_fill, name = NULL, guide = "none") +
-#     scale_shape_manual(values = palette_shape, name = NULL, guide = "none") +
-#     scale_linetype_manual(values = palette_linetype, guide = "none") +
-#     guides(
-#       colour = guide_legend(
-#         title = NULL,
-#         nrow = 1,
-#         override.aes = list(
-#           colour = palette_colour,
-#           shape = palette_shape,
-#           linetype = palette_linetype,
-#           fill = palette_fill
-#         )
-#       )
-#     ) +
-#     theme_bw() +
-#     theme(
-#       panel.border = element_blank(),
-#       axis.line.y = element_line(colour = "black"),
-#       
-#       axis.text = element_text(size=10),
-#       
-#       axis.title.x = element_text(size=10, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-#       axis.title.y = element_text(size=10, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-#       axis.text.x = element_text(size=8),
-#       axis.text.y = element_text(size=8),
-#       
-#       panel.grid.minor.x = element_blank(),
-#       panel.grid.minor.y = element_blank(),
-#       strip.background = element_blank(),
-#       strip.placement = "outside",
-#       strip.text.y.left = element_text(angle = 0),
-#       strip.text = element_text(size=8),
-#       
-#       panel.spacing = unit(0.8, "lines"),
-#       
-#       plot.title = element_text(hjust = 0),
-#       plot.title.position = "plot",
-#       plot.caption.position = "plot",
-#       plot.caption = element_text(hjust = 0, face= "italic"),
-#       
-#       legend.position = "bottom",
-#       legend.key.width = unit(2, 'cm'),
-#       legend.text = element_text(size=10)
-#     ) 
-#   
-#   ggsave(p,
-#          filename = file.path(release_folder, "checking", "hr_subgroups_lee.png"),
-#          width=page_width, height=16, units="cm")
-#   
-# })
