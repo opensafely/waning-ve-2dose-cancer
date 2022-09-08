@@ -6,7 +6,7 @@ library(magrittr)
 library(kableExtra)
 
 ################################################################################
-if (!exists("release_folder")) release_folder <- here::here("output", "release_objects")
+release_folder <- here::here("release20220622")
 
 ################################################################################
 # read subgroups
