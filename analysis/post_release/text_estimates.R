@@ -1,5 +1,4 @@
 library(tidyverse)
-library(glue)
 
 release_folder <- here::here("release20220622")
 
@@ -15,24 +14,22 @@ table1_main_TRUE_REDACTED <- readr::read_csv(
   "release20220622/table1_main_TRUE_REDACTED.csv"
   )
 cols <- names(table1_main_TRUE_REDACTED[,3:8])
-counts <- as.numeric(str_remove_all((unlist(table1_main_TRUE_REDACTED[1,3:8])), ","))
+# extract group x cohort counts
+counts_formatted <- unlist(table1_main_TRUE_REDACTED[1,3:8])
+# remove commas and reformat as numeric
+counts <- as.numeric(str_remove_all(counts_formatted, ","))
 names(counts) <- cols
 
-## number eligibile for each group
-# BNT162b2
-sum(counts[c(1,4)])
-# ChAdOx1
-sum(counts[c(2,5)])
-# unvax
-sum(counts[c(3,6)])
-
-## percent of each group in the cancer cohort
-# BNT162b2
-100*counts[1]/sum(counts[c(1,4)])
-# ChAdOx1
-100*counts[2]/sum(counts[c(2,5)])
-# unvax
-100*counts[3]/sum(counts[c(3,6)])
+## number eligibile for each vaccine group
+for (i in c("BNT162b2", "ChAdOx1", "Unvaccinated")) {
+  total <- sum(counts[str_detect(names(counts), glue::glue("^{i}"))])
+  pct_cancer <- round(100*counts[glue::glue("{i}_1")]/total,0)
+  cat(
+    glue::glue("{i}:"), "\n",
+    glue::glue("N eligible = {scales::comma(total, accuracy=1)}"), "\n",
+    glue::glue("% cancer = {pct_cancer}"), "\n"
+    )
+}
 
 ## total in each cohort
 # cancer cohort:
@@ -40,6 +37,7 @@ scales::comma(sum(counts[str_detect(names(counts), "_1")]))
 # general cohort
 scales::comma(sum(counts[str_detect(names(counts), "_2")]))
 
+# read summary stats in the cancer and general cohorts split by age subgroup
 table1_age_TRUE_REDACTED <- readr::read_csv(
   "release20220622/table1_age_TRUE_REDACTED.csv"
 )
@@ -47,88 +45,50 @@ table1_age_TRUE_REDACTED <- readr::read_csv(
 # percent of those aged 18-69 years in JCVI groups 4b & 6 in each cohort
 # (5=cancer, 7=non-cancer)
 table1_age_TRUE_REDACTED %>% 
+  # keep rows for groups 4b & 6
   filter(Variable=="JCVI group", Characteristic %in% c("04b", "06")) %>% 
   arrange(Characteristic) %>%
+  # keep 18-69 subgroups
   select(ends_with(as.character(c(5,7)))) %>%
+  # remove formatting and code as integers
   mutate(across(ends_with(as.character(c(5,7))),
                 ~as.integer(str_remove(str_extract(.x, "\\d+\\%"), "\\%"))
                 )
          ) %>%
+  # sum percentages across the JCVI groups
   summarise(across(everything(), sum))
 
 ################################################################################
+# read event counts
 event_counts <- readr::read_csv(
   here::here(release_folder, "event_counts.csv")
 )
 
-event_counts %>%
-  filter(
-    outcome == "postest", 
-    k %in% c(1,6),
-    subgroup %in% c("cancer", "noncancer")
-    ) %>%
-  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
-  group_by(subgroup, arm, k) %>%
-  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
-  ungroup() %>%
-  select(-personyears) %>%
-  rename(
-    cohort = subgroup,
-    group = arm, 
-    period = k
-  ) %>%
-  mutate(
-    absolute_risk = round(events/n, 5)#,
-    # incidence_rate_per1000py = 1000*round(events/personyears,3)
-    ) %>%
-  kableExtra::kable("pipe")
-
-event_counts %>%
-  filter(
-    outcome == "covidadmitted", 
-    k %in% c(1,6),
-    subgroup %in% c("cancer", "noncancer")
-  ) %>%
-  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
-  group_by(subgroup, k) %>%
-  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
-  ungroup() %>%
-  select(-personyears) %>%
-  rename(
-    cohort = subgroup,
-    period = k
-  ) %>%
-  mutate(
-    absolute_risk = round(events/n, 5)#,
-    # incidence_rate_per1000py = 1000*round(events/personyears,3)
-  ) %>%
-  kableExtra::kable("pipe")
-
-event_counts %>%
-  filter(
-    outcome == "covidadmitted", 
-    k %in% c(1,6),
-    subgroup %in% c("cancer", "noncancer") |
-    subgroup %in% c("cancer_18-69", "cancer_70+", "noncancer_18-69", "noncancer_70+")
-  ) %>%
-  mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
-  group_by(subgroup, k) %>%
-  summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
-  ungroup() %>%
-  select(-personyears) %>%
-  rename(
-    cohort = subgroup,
-    period = k
-  ) %>%
-  mutate(
-    absolute_risk = round(events/n, 5)#,
-    # incidence_rate_per1000py = 1000*round(events/personyears,3)
-  ) %>%
-  kableExtra::kable("pipe")
-
-
+# calculate absolute risk in comparison periods 1 and 6
+# event_counts %>%
+#   filter(
+#     outcome == "covidadmitted", 
+#     k %in% c(1,6),
+#     subgroup %in% c("cancer", "noncancer") |
+#     subgroup %in% c("cancer_18-69", "cancer_70+", "noncancer_18-69", "noncancer_70+")
+#   ) %>%
+#   mutate(across(arm, ~if_else(arm == "unvax", .x, "vax"))) %>%
+#   group_by(subgroup, k) %>%
+#   summarise(across(c("personyears", "n", "events"), ~sum(.x)), .groups = "keep") %>%
+#   ungroup() %>%
+#   select(-personyears) %>%
+#   rename(
+#     cohort = subgroup,
+#     period = k
+#   ) %>%
+#   mutate(
+#     absolute_risk = round(events/n, 5)#,
+#     # incidence_rate_per1000py = 1000*round(events/personyears,3)
+#   ) %>%
+#   kableExtra::kable("pipe")
 
 ################################################################################
+# read all hr estimates and filter estimates of vaccine effectiveness
 estimates_all <- readr::read_csv(
   here::here(release_folder, "estimates_all.csv")
 ) %>%
@@ -136,58 +96,27 @@ estimates_all <- readr::read_csv(
                 levels = seq_along(subgroups),
                 labels = subgroups)) %>%
   filter(
-    variable == "k",
-    !reference_row,
-    model=="max_adjusted",
+    variable == "k", # comparison period estimates
+    !reference_row, 
+    model=="max_adjusted", # keep only max adjusted model
     outcome %in% c("postest", "covidadmitted", "coviddeath", "noncoviddeath"),
-    comparison=="both",
-    prior
+    comparison=="both", # keep only combined effectiveness for BNT162b2 and ChAdOx1
+    prior # include those with prior infection
   ) %>%
+  # calculate exponential of estimate and confidence intervals
   mutate(across(c(estimate, conf.low, conf.high), exp)) 
 
-metareg_res <- readr::read_rds(here::here(release_folder, "metareg_res.rds")) %>%
-  right_join(
-    estimates_all %>%
-      distinct(subgroup, comparison, outcome, model, prior)
-  ) %>%
-  select(subgroup, comparison, outcome, model, prior, starts_with("logrhr")) %>%
-  mutate(across(starts_with("logrhr"), ~round(exp(.x),2)))
 
-estimates_all %>%
-  filter(
-   period %in% c(1,6)
-    ) %>%
-  mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-.x),1)))  %>%
-  transmute(
-    subgroup, outcome, period, 
-    value = glue("{estimate}% [{conf.high}, {conf.low}]")
-  ) %>%
-  pivot_wider(
-    names_from = subgroup,
-    values_from = value
-  )
-
-
-metareg_res %>%
-  transmute(
-    subgroup, outcome, 
-    value = glue("{logrhr} [{logrhr_lower}, {logrhr_higher}]")
-  ) %>%
-  pivot_wider(
-    names_from = subgroup,
-    values_from = value
-  )
-
-
-# percentage point differences in 3-6 o 23-26
+# percentage point differences from 3-6 to 23-26 
 ppoint <- estimates_all %>%
   filter(
-    as.integer(subgroup) %in% 1:2
+    as.integer(subgroup) %in% 1:2 # cancer and general cohorts
     ) %>%
   mutate(across(c(estimate, conf.low, conf.high), ~round(100*(1-.x),1)))  
 
+# generate text to paste into manuscript
 ppoint %>%
-  mutate(text = glue("{format(estimate,nsmall=1,trim=TRUE)}% [{format(conf.high,nsmall=1,trim=TRUE)}, {format(conf.low,nsmall=1,trim=TRUE)}]")) %>%
+  mutate(text = glue::glue("{format(estimate,nsmall=1,trim=TRUE)}% [{format(conf.high,nsmall=1,trim=TRUE)}, {format(conf.low,nsmall=1,trim=TRUE)}]")) %>%
   select(subgroup, outcome, period, estimate, text) %>%
   pivot_wider(
     names_from = period,
@@ -199,57 +128,39 @@ ppoint %>%
   ) %>%
   transmute(
     outcome,
-    text_1_6 = glue("{format(diff_1_6,nsmall=1)} percentage points in our {subgroup} cohort ({text_1} during 3-6 weeks versus {text_6} during 23-26 weeks)"),
-    text_2_6 = glue("{format(diff_2_6,nsmall=1)} percentage points in our {subgroup} cohort {text_2} during 3-6 weeks versus {text_6} during 23-26 weeks")
+    text_1_6 = glue::glue("{format(diff_1_6,nsmall=1)} percentage points in our {subgroup} cohort ({text_1} during 3-6 weeks versus {text_6} during 23-26 weeks)"),
+    text_2_6 = glue::glue("{format(diff_2_6,nsmall=1)} percentage points in our {subgroup} cohort {text_2} during 3-6 weeks versus {text_6} during 23-26 weeks")
     ) %>%
   select(outcome, contains("1"))
 
 
 ###############################################################################
+# read ratio of HRs data
 metareg_results_rhr <- readr::read_rds(
   here::here(release_folder, "metareg_results_rhr.rds")
 )
 
-metareg_results_rhr %>% 
-  filter(
-    subgroup%in% subgroups[1:2],
-    comparison=="both", 
-    outcome%in%c("postest", "covidadmitted", "coviddeath"),
-    prior,
-    model==1
-  ) %>%
-  mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
-  transmute(
-    outcome, subgroup,
-    value = glue("{rhr} [{rhr_lower}, {rhr_higher}]")
-    ) 
-
-metareg_results_rhr %>% 
-  filter(
-    subgroup %in% subgroups[3:4],
-    comparison=="both", 
-    outcome%in%c("postest","covidadmitted", "coviddeath"),
-    prior,
-    model==1
+print_rhrs <- function(i) {
+  metareg_results_rhr %>% 
+    filter(
+      subgroup%in% subgroups[i],
+      comparison=="both", 
+      outcome%in%c("postest", "covidadmitted", "coviddeath"),
+      prior,
+      model==3
     ) %>%
-  mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
-  mutate(value = glue("{rhr} [{rhr_lower}-{rhr_higher}]"))
+    mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
+    transmute(
+      outcome, subgroup,
+      value = glue::glue("{rhr} [{rhr_lower}, {rhr_higher}]")
+    ) 
+}
 
+# ratios of HRs in cancer and general cohorts
+print_rhrs(1:2)
 
+# ratios of HRs in hame and solid subgroups
+print_rhrs(3:4)
 
-
-metareg_results_rhr %>% 
-  filter(
-    subgroup%in% subgroups[5:8],
-    comparison!="both", 
-    outcome%in%c("postest","covidadmitted", "coviddeath"),
-    prior,
-    model==1
-  ) %>%
-  mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
-  mutate(value = glue("{rhr} [{rhr_lower}-{rhr_higher}]")) %>%
-  select(comparison, outcome, subgroup, value) %>%
-  pivot_wider(
-    names_from = subgroup,
-    values_from = value
-  )
+# ratios of HRs in cancer and general cohorts and age subgroups
+print_rhrs(5:8)
