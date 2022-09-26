@@ -472,7 +472,7 @@ study=StudyDefinition(
     # non-haematological cancer
     cancer_solid_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_nonhaem_icd10,
-            on_or_after="2018-01-01",
+            between=["start_1_date - 1 year", "start_1_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -482,7 +482,7 @@ study=StudyDefinition(
     ),
     cancer_solid_snomed_date=patients.with_these_clinical_events( 
             cancer_nonhaem_snomed,
-            on_or_after="2018-01-01",
+            between=["start_1_date - 1 year", "start_1_date"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -494,7 +494,7 @@ study=StudyDefinition(
     # haematological cancer
     cancer_haem_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_haem_icd10,
-            on_or_after="2018-01-01",
+            between=["start_1_date - 1 year", "start_1_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -504,7 +504,7 @@ study=StudyDefinition(
     ),
     cancer_haem_snomed_date=patients.with_these_clinical_events( 
             cancer_haem_snomed,
-            on_or_after="2018-01-01",
+            between=["start_1_date - 1 year", "start_1_date"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -516,7 +516,7 @@ study=StudyDefinition(
     # unspecified cancer
     cancer_unspec_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_unspec_icd10,
-            on_or_after="2018-01-01",
+            between=["start_1_date - 1 year", "start_1_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
