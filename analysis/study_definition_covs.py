@@ -108,7 +108,7 @@ study=StudyDefinition(
       # set maximum to avoid any impossibly extreme values being classified as obese
     },
     bmi_value=patients.most_recent_bmi(
-        between=["svp_start_date - 5 years", "svp_start_date - 1 day"],
+        between=["svp_start_date - 5 years", "svp_start_date"],
         minimum_age_at_measurement=16
     ),
     return_expectations={
@@ -134,31 +134,31 @@ study=StudyDefinition(
     astadm=patients.with_these_clinical_events(
       astadm_primis,
       returning="binary_flag",
-      on_or_before="svp_start_date - 1 day",
+      on_or_before="svp_start_date",
     ),
     # Asthma Diagnosis code
     ast = patients.with_these_clinical_events(
       ast_primis,
       returning="binary_flag",
-      on_or_before="svp_start_date - 1 day",
+      on_or_before="svp_start_date",
     ),
     # Asthma systemic steroid prescription code in month 1
     astrxm1=patients.with_these_medications(
       astrx_primis,
       returning="binary_flag",
-      between=["svp_start_date - 30 days", "svp_start_date - 1 day"],
+      between=["svp_start_date - 29 days", "svp_start_date"],
     ),
     # Asthma systemic steroid prescription code in month 2
     astrxm2=patients.with_these_medications(
       astrx_primis,
       returning="binary_flag",
-      between=["svp_start_date - 60 days", "svp_start_date - 31 days"],
+      between=["svp_start_date - 59 days", "svp_start_date - 30 days"],
     ),
     # Asthma systemic steroid prescription code in month 3
     astrxm3=patients.with_these_medications(
       astrx_primis,
       returning="binary_flag",
-      between= ["svp_start_date - 90 days", "svp_start_date - 61 days"],
+      between= ["svp_start_date - 89 days", "svp_start_date - 60 days"],
         ),
     ),
 
@@ -169,7 +169,7 @@ study=StudyDefinition(
         resp=patients.with_these_clinical_events(
             resp_primis,
             returning="binary_flag",
-            on_or_before="svp_start_date - 1 day",
+            on_or_before="svp_start_date",
             return_expectations={"incidence": 0.02},
             ),
     ),
@@ -178,7 +178,7 @@ study=StudyDefinition(
     cns=patients.with_these_clinical_events(
         cns_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
     ),
 
@@ -194,7 +194,7 @@ study=StudyDefinition(
             ckd15_primis,
             returning="date",
             find_last_match_in_period=True,
-            on_or_before="svp_start_date - 1 day",
+            on_or_before="svp_start_date",
             date_format="YYYY-MM-DD",
         ),
         # Chronic kidney disease codes-stages 3 - 5
@@ -202,14 +202,14 @@ study=StudyDefinition(
             ckd35_primis,
             returning="date",
             find_last_match_in_period=True,
-            on_or_before="svp_start_date - 1 day",
+            on_or_before="svp_start_date",
             date_format="YYYY-MM-DD",
         ),
         # Chronic kidney disease diagnostic codes
         ckd_any=patients.with_these_clinical_events(
             ckd_primis,
             returning="binary_flag",
-            on_or_before="svp_start_date - 1 day",
+            on_or_before="svp_start_date",
         ),
         return_expectations={"incidence": 0.01},
     ),
@@ -218,7 +218,7 @@ study=StudyDefinition(
     diabetes=patients.with_these_clinical_events(
         diab_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
         ),
 
@@ -226,7 +226,7 @@ study=StudyDefinition(
     sev_mental=patients.with_these_clinical_events(
         sev_mental_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
         ),
 
@@ -234,7 +234,7 @@ study=StudyDefinition(
     chd=patients.with_these_clinical_events(
         chd_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
     ),
 
@@ -242,7 +242,7 @@ study=StudyDefinition(
     cld=patients.with_these_clinical_events(
         cld_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
     ),
 
@@ -253,20 +253,20 @@ study=StudyDefinition(
     immdx=patients.with_these_clinical_events(
         immdx_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
         ),
     # Immunosuppression medication codes
     immrx=patients.with_these_medications(
         immrx_primis,
         returning="binary_flag",
-        between=["svp_start_date - 180 days", "svp_start_date - 1 day"],
+        between=["svp_start_date - 180 days", "svp_start_date"],
         ),
     # Asplenia or Dysfunction of the Spleen codes
     asplenia=patients.with_these_clinical_events(
         spln_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
       ),
     ),
@@ -275,7 +275,7 @@ study=StudyDefinition(
     learndis=patients.with_these_clinical_events(
         learndis_primis,
         returning="binary_flag",
-        on_or_before="svp_start_date - 1 day",
+        on_or_before="svp_start_date",
         return_expectations={"incidence": 0.02},
     ),
 
@@ -318,7 +318,7 @@ study=StudyDefinition(
             preg_primis,
             returning="date",
             find_last_match_in_period=True,
-            between=["svp_start_date - 252 days", "svp_start_date - 1 day"],
+            between=["svp_start_date - 252 days", "svp_start_date"],
             date_format="YYYY-MM-DD",
         ),
         # date of last delivery code recorded in 36 weeks before elig_date
@@ -326,7 +326,7 @@ study=StudyDefinition(
             pregdel_primis,
             returning="date",
             find_last_match_in_period=True,
-            between=["svp_start_date - 252 days", "svp_start_date - 1 day"],
+            between=["svp_start_date - 252 days", "svp_start_date"],
             date_format="YYYY-MM-DD",
         ),
     ),
@@ -472,7 +472,7 @@ study=StudyDefinition(
     # non-haematological cancer
     cancer_solid_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_nonhaem_icd10,
-            between=["start_1_date - 1 year", "start_1_date"],
+            between=["svp_start_date - 2 years", "svp_start_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -482,7 +482,7 @@ study=StudyDefinition(
     ),
     cancer_solid_snomed_date=patients.with_these_clinical_events( 
             cancer_nonhaem_snomed,
-            between=["start_1_date - 1 year", "start_1_date"],
+            between=["svp_start_date - 2 years", "svp_start_date"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -494,7 +494,7 @@ study=StudyDefinition(
     # haematological cancer
     cancer_haem_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_haem_icd10,
-            between=["start_1_date - 1 year", "start_1_date"],
+            between=["svp_start_date - 2 years", "svp_start_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -504,7 +504,7 @@ study=StudyDefinition(
     ),
     cancer_haem_snomed_date=patients.with_these_clinical_events( 
             cancer_haem_snomed,
-            between=["start_1_date - 1 year", "start_1_date"],
+            between=["svp_start_date - 2 years", "svp_start_date"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -516,7 +516,7 @@ study=StudyDefinition(
     # unspecified cancer
     cancer_unspec_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_unspec_icd10,
-            between=["start_1_date - 1 year", "start_1_date"],
+            between=["svp_start_date - 2 years", "svp_start_date"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
