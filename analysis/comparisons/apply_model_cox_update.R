@@ -119,18 +119,14 @@ for (kk in 1:K) {
     # set max iterations
     opt_control <- coxph.control(iter.max = 30)
     
-    ## Notes on `weights` in the survival:coxph function:
-    # When the model includes a cluster term or the robust=TRUE option the 
-    # computed variance treats any weights as sampling weights; setting all 
-    # weights to 2 will in this case give the same variance as weights of 1.
-    
     coxmods <- list()
     cat(glue("...... fitting unadjusted model ......"), "\n")
     coxmods[[1]] <- try(coxph(
       formula = formula_cox_1,
       data = data_cox,
-      cluster = patient_id, 
-      weights = weight,
+      # robust = TRUE,
+      # id = patient_id,
+      cluster = patient_id,
       na.action = "na.fail",
       control = opt_control))
     
@@ -144,8 +140,9 @@ for (kk in 1:K) {
     coxmods[[2]] <- try(coxph(
       formula = formula_cox_2,
       data = data_cox,
+      # robust = TRUE,
+      # id = patient_id,
       cluster = patient_id,
-      weights = weight,
       na.action = "na.fail",
       control = opt_control))
     
@@ -159,8 +156,9 @@ for (kk in 1:K) {
     coxmods[[3]] <- try(coxph(
       formula = formula_cox_3,
       data = data_cox,
+      # robust = TRUE,
+      # id = patient_id,
       cluster = patient_id,
-      weights = weight,
       na.action = "na.fail",
       control = opt_control))
     

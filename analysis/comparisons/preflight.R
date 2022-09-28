@@ -60,83 +60,67 @@ data_covs <- readr::read_rds(
 data_tte_0 <- readr::read_rds(
   here::here("output", "tte", "data", glue("data_tte_{outcome}.rds"))) 
 
+# select the arms to include
+if (comparison == "both") {
+  # grouping brands together
+  data_tte_1 <- data_tte_0 %>%
+    mutate(across(arm, 
+                  ~factor(
+                    if_else(.x == "unvax", as.character(.x), "vax"),
+                    levels = c("vax", "unvax")
+                    )))
+} else {
+  # single brand
+  data_tte_1 <- data_tte_0 %>%
+    filter(arm %in% c("unvax", comparison))
+}
+
+
 # select subgroup
 if (subgroup_index == 1) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup != "noncancer"
     ) 
 } else if (subgroup_index == 2) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup == "noncancer"
     ) 
 } else if (subgroup_index == 3) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup == "cancer_haem"
     ) 
 } else if (subgroup_index == 4) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup == "cancer_solid"
     ) 
 } else if (subgroup_index == 5) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup != "noncancer",
       age_subgroup == "18-69"
     ) 
 } else if (subgroup_index == 6) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup != "noncancer",
       age_subgroup == "70+"
     ) 
 } else if (subgroup_index == 7) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup == "noncancer",
       age_subgroup == "18-69"
     ) 
 } else if (subgroup_index == 8) {
-  data_tte_1 <- data_tte_0 %>%
+  data_tte_2 <- data_tte_1 %>%
     filter(
       cancer_subgroup == "noncancer",
       age_subgroup == "70+"
     ) 
-}
-
-# select the arms to include
-# derive weights so that BNT162b2 and ChAdOx1 equal weights for "both" analysis
-if (comparison == "both") {
-  
-  # derive weights for each brand
-  # weights for smaller group = 1
-  # weights for larger group = n_smaller group / n_larger group
-  arm_weights <- data_tte_1 %>%
-    filter(arm != "unvax") %>%
-    group_by(arm) %>%
-    count() %>%
-    ungroup() %>%
-    mutate(weight = min(n)/n)
-  
-  # grouping brands together
-  data_tte_2 <- data_tte_1 %>%
-    left_join(arm_weights, by = "arm") %>%
-    mutate(across(weight, ~if_else(arm == "unvax", 1, .x))) %>%
-    mutate(across(arm, 
-                  ~factor(
-                    if_else(.x == "unvax", as.character(.x), "vax"),
-                    levels = c("vax", "unvax")
-                  ))) 
-    
-    
-} else {
-  # single brand
-  data_tte_2 <- data_tte_1 %>%
-    filter(arm %in% c("unvax", comparison)) %>%
-    mutate(weight = 1)
 }
 
 # apply prior infection criteria
