@@ -3,7 +3,7 @@ library(tidyverse)
 release_folder <- here::here("release20220622")
 
 metareg_results_rhr <- readr::read_rds(
-  here::here(release_folder, "metareg_results_rhr.rds")
+  here::here(release_folder, "metareg_res.rds")
 )
 
 ################################################################################
@@ -14,7 +14,7 @@ subgroups <- readr::read_rds(
 ################################################################################
 
 
-for (m in 1:3) {
+for (m in c("unadjusted", "max_adjusted")) {
   
   ftab <- metareg_results_rhr %>%
     filter(
@@ -22,7 +22,8 @@ for (m in 1:3) {
       prior,
       outcome != "anytest"
     ) %>%
-    mutate(across(starts_with("rhr"), ~round(.x,2))) %>%
+    mutate(across(starts_with("logrhr"), ~round(exp(.x),2))) %>%
+    rename_with(~str_remove(.x, "log"), starts_with("logrhr")) %>%
     transmute(
       outcome, subgroup, comparison,
       value = glue::glue("{format(rhr, nsmall=2)} ({format(rhr_lower,nsmall=2)}, {format(rhr_higher, nsmall=2)})")

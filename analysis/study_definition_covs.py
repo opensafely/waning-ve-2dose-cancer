@@ -80,7 +80,7 @@ study=StudyDefinition(
 
     # age on svp start date
     age=patients.age_as_of(
-        "svp_start_date",
+        "svp_start_date - 1 day",
         return_expectations={
             "rate" : "universal",
             "int" : {"distribution" : "population_ages"}
@@ -289,19 +289,19 @@ study=StudyDefinition(
         
         flu_vaccine_tpp_table=patients.with_tpp_vaccination_record(
             target_disease_matches="INFLUENZA",
-            between=["svp_start_date - 5 years", "svp_start_date"], 
+            between=["svp_start_date - 5 years", "svp_start_date - 1 day"], 
             returning="binary_flag",
         ),
         
         flu_vaccine_med=patients.with_these_medications(
             flu_med_codes,
-            between=["svp_start_date - 5 years", "svp_start_date"], 
+            between=["svp_start_date - 5 years", "svp_start_date - 1 day"], 
             returning="binary_flag",
         ),
         flu_vaccine_clinical=patients.with_these_clinical_events(
             flu_clinical_given_codes,
             ignore_days_where_these_codes_occur=flu_clinical_not_given_codes,
-            between=["svp_start_date - 5 years", "svp_start_date"], 
+            between=["svp_start_date - 5 years", "svp_start_date - 1 day"], 
             returning="binary_flag",
         ),
         return_expectations={"incidence": 0.5, },
@@ -472,7 +472,7 @@ study=StudyDefinition(
     # non-haematological cancer
     cancer_solid_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_nonhaem_icd10,
-            on_or_after="2018-01-01",
+            between=["svp_start_date - 2 years", "svp_start_date - 1 day"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -482,7 +482,7 @@ study=StudyDefinition(
     ),
     cancer_solid_snomed_date=patients.with_these_clinical_events( 
             cancer_nonhaem_snomed,
-            on_or_after="2018-01-01",
+            between=["svp_start_date - 2 years", "svp_start_date - 1 day"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -494,7 +494,7 @@ study=StudyDefinition(
     # haematological cancer
     cancer_haem_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_haem_icd10,
-            on_or_after="2018-01-01",
+            between=["svp_start_date - 2 years", "svp_start_date - 1 day"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
@@ -504,7 +504,7 @@ study=StudyDefinition(
     ),
     cancer_haem_snomed_date=patients.with_these_clinical_events( 
             cancer_haem_snomed,
-            on_or_after="2018-01-01",
+            between=["svp_start_date - 2 years", "svp_start_date - 1 day"],
             find_first_match_in_period=True,
             returning="date",
             date_format="YYYY-MM-DD",
@@ -516,7 +516,7 @@ study=StudyDefinition(
     # unspecified cancer
     cancer_unspec_icd10_date=patients.admitted_to_hospital(
             with_these_diagnoses=cancer_unspec_icd10,
-            on_or_after="2018-01-01",
+            between=["svp_start_date - 2 years", "svp_start_date - 1 day"],
             find_first_match_in_period=True,
             returning="date_admitted",
             date_format="YYYY-MM-DD",
