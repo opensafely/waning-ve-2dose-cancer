@@ -58,11 +58,27 @@ list_modelcox_tidy <- function(
   )
 }
 
+
 all_files <- c(
   list_modelcox_tidy(),
   list_modelcox_tidy(s=1:2,p=FALSE)
 )
-  
+
+mtimes <- sapply(
+  all_files,
+  function(x)
+    format(file.info(here::here("output", "models_cox", "data", x))$mtime, "%m/%d/%y %H:%M")
+)
+
+cat("Check when files were last modified:")
+tibble(
+  file = names(mtimes),
+  modified = unname(mtimes)
+) %>%
+  arrange(modified) %>%
+  print(n=Inf)
+
+# read files
 model_tidy_list <- lapply(
   all_files,
   function(filename) {
