@@ -208,7 +208,7 @@ readr::write_rds(
 )
 
 ################################################################################
-comparisons <- c("BNT162b2", "ChAdOx1", "both")
+comparisons <- c("BNT162b2", "ChAdOx1")#, "both")
 readr::write_rds(
   comparisons,
   here::here("analysis", "lib", "comparisons.rds")
@@ -480,15 +480,15 @@ actions_list <- splice(
     )
   ),
   
-  comment("cancer source"),
-  action(
-    name = "cancer_source",
-    run = "r:latest analysis/report/cancer_source.R",
-    needs = list("generate_covs_data"),
-    moderately_sensitive = list(
-      event_counts = "output/report/cancer_source.txt"
-    )
-  ),
+  # comment("cancer source"),
+  # action(
+  #   name = "cancer_source",
+  #   run = "r:latest analysis/report/cancer_source.R",
+  #   needs = list("generate_covs_data"),
+  #   moderately_sensitive = list(
+  #     event_counts = "output/report/cancer_source.txt"
+  #   )
+  # ),
   
   comment("####################################",
           "subsequent vaccination", 
@@ -547,16 +547,17 @@ actions_list <- splice(
       event_counts = "output/tte/tables/event_counts.csv"
     )
   ),
-  
-  comment("absolute risk"),
-  action(
-    name = "absolute_risk",
-    run = "r:latest analysis/comparisons/absolute_risk.R",
-    needs = list("data_covariates_process", "data_tte_process"),
-    moderately_sensitive = list(
-      absolute_risk = "output/tte/tables/ar_*.csv"
-    )
-  ),
+
+  # TODO - if including this again, separate by brand  
+  # comment("absolute risk"),
+  # action(
+  #   name = "absolute_risk",
+  #   run = "r:latest analysis/comparisons/absolute_risk.R",
+  #   needs = list("data_covariates_process", "data_tte_process"),
+  #   moderately_sensitive = list(
+  #     absolute_risk = "output/tte/tables/ar_*.csv"
+  #   )
+  # ),
 
   # comment("check distribution of follow-up time in relation to variant dates"),
   # action(
@@ -621,7 +622,7 @@ actions_list <- splice(
     )
   ),
   
-  comment("All analyses with prior infection removed"),
+  comment("Main analyses with prior infection removed"),
   
   splice(
     unlist(
@@ -631,7 +632,7 @@ actions_list <- splice(
           splice(
             unlist(
               lapply(
-                1:8, #subgroup indices
+                1:2, #subgroup indices
                 function(y)
                   splice(
                     unlist(
@@ -671,19 +672,32 @@ actions_list <- splice(
                 lapply(
                  1:8, #subgroup indices
                   function(y)
-                    splice(
-                      unlist(
                         lapply(
                           unname(outcomes),
                           function(z)
-                            lapply(
-                              c(FALSE, TRUE),
-                              function(p)
-                                glue("apply_model_cox_{x}_{y}_{p}_{z}")
-                            )
-                        ), 
-                        recursive = FALSE)
-                    )
+                            glue("apply_model_cox_{x}_{y}_TRUE_{z}")
+                        ) 
+                ),
+                recursive = FALSE
+              )
+            )
+        ),
+        recursive = FALSE
+      ),
+      unlist(
+        lapply(
+          comparisons,
+          function(x)
+            splice(
+              unlist(
+                lapply(
+                  1:2, #subgroup indices
+                  function(y)
+                        lapply(
+                          unname(outcomes),
+                          function(z)
+                            glue("apply_model_cox_{x}_{y}_FALSE_{z}")
+                        )
                 ),
                 recursive = FALSE
               )

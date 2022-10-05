@@ -136,21 +136,22 @@ for (kk in 1:K) {
       compress = "gz"
     )
     
-    cat(glue("...... adjusting for demographic vars ......"), "\n")
-    coxmods[[2]] <- try(coxph(
-      formula = formula_cox_2,
-      data = data_cox,
-      # robust = TRUE,
-      # id = patient_id,
-      cluster = patient_id,
-      na.action = "na.fail",
-      control = opt_control))
-    
-    readr::write_rds(
-      coxmods[[2]],
-      here::here("output", "models_cox", "data", glue("model_object_2_{filename_suffix}.rds")),
-      compress = "gz"
-    )
+    # cat(glue("...... adjusting for demographic vars ......"), "\n")
+    coxmods[[2]] <- NULL
+    #   try(coxph(
+    #   formula = formula_cox_2,
+    #   data = data_cox,
+    #   # robust = TRUE,
+    #   # id = patient_id,
+    #   cluster = patient_id,
+    #   na.action = "na.fail",
+    #   control = opt_control))
+    # 
+    # readr::write_rds(
+    #   coxmods[[2]],
+    #   here::here("output", "models_cox", "data", glue("model_object_2_{filename_suffix}.rds")),
+    #   compress = "gz"
+    # )
     
     cat(glue("...... adjusting for demographic and clinical vars ......"), "\n")
     coxmods[[3]] <- try(coxph(
@@ -176,7 +177,7 @@ for (kk in 1:K) {
       
       coxmod <- coxmods[[i]]
       
-      if (!inherits(coxmod, "try-error")) {
+      if (!inherits(coxmod, "try-error") & !is.null(coxmod)) {
         
         glance[[i]] <-
           broom::glance(coxmod) %>%

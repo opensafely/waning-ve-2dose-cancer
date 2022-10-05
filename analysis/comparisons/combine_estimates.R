@@ -27,20 +27,58 @@ subgroups <- readr::read_rds(
 subgroup_labels <- seq_along(subgroups)
 
 # define comparisons
-comparisons <- c("BNT162b2", "ChAdOx1", "both")
+comparisons <- readr::read_rds(
+  here::here("analysis", "lib", "comparisons.rds"))
 
 # redaction functions
 source(here::here("analysis", "functions", "redaction_functions.R"))
 
 ################################################################################
 # model estimates
-all_files <- list.files(path = here::here("output", "models_cox", "data"), 
-           pattern = "modelcox_tidy_.+.rds",
-           all.files = FALSE,
-           full.names = FALSE, recursive = FALSE,
-           ignore.case = FALSE, include.dirs = FALSE)
+list_modelcox_tidy <- function(
+  c = comparisons,
+  s = subgroup_labels, 
+  p = TRUE
+) {
+  unlist(
+    lapply(
+      c,
+      function(x)
+        lapply(
+          s,
+          function(y)
+            list.files(path = here::here("output", "models_cox", "data"),
+                       pattern = glue("modelcox_tidy_{x}_{y}_{p}_.+.rds"),
+                       all.files = FALSE,
+                       full.names = FALSE, recursive = FALSE,
+                       ignore.case = FALSE, include.dirs = FALSE)
+        )
+      
+    ) 
+  )
+}
 
 
+all_files <- c(
+  list_modelcox_tidy(),
+  list_modelcox_tidy(s=1:2,p=FALSE)
+)
+
+mtimes <- sapply(
+  all_files,
+  function(x)
+    format(file.info(here::here("output", "models_cox", "data", x))$mtime, "%m/%d/%y %H:%M")
+)
+
+cat("Check when files were last modified:")
+tibble(
+  file = names(mtimes),
+  modified = unname(mtimes)
+) %>%
+  arrange(modified) %>%
+  print(n=Inf)
+
+# read files
 model_tidy_list <- lapply(
   all_files,
   function(filename) {
