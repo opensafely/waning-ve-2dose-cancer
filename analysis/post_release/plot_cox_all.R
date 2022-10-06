@@ -8,10 +8,6 @@ library(lubridate)
 library(glue)
 
 ################################################################################
-release_folder <- here::here("release20220622")
-fs::dir_create(file.path(release_folder, "checking"))
-
-################################################################################
 # read study parameters
 study_parameters <- readr::read_rds(
   here::here("analysis", "lib", "study_parameters.rds"))
@@ -33,14 +29,27 @@ subgroups <- readr::read_rds(
 subgroup_labels <- seq_along(subgroups)
 
 # define comparisons
-comparisons_old <- c("BNT162b2", "ChAdOx1", "both")
-comparisons_new <- c("BNT162b2", "ChAdOx1", "Combined")
+comparisons <- readr::read_rds(
+  here::here("analysis", "lib", "comparisons.rds"))
 
 ################################################################################
-# read estimates data
-estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
+# read data and create output folder
 
-metareg_res <- readr::read_rds(file.path(release_folder, "metareg_res.rds")) 
+if(Sys.getenv("OPENSAFELY_BACKEND") %in% c("", "expectations")){
+  
+  release_folder <- here::here("release20220622")
+  
+  metareg_res <- readr::read_rds(file.path(release_folder, "metareg_res.rds")) 
+  
+} else {
+  
+  release_folder <- here::here("output", "release_objects")
+  
+}
+
+fs::dir_create(file.path(release_folder, "checking"))
+
+estimates_all <- readr::read_csv(file.path(release_folder, "estimates_all.csv")) 
 
 ################################################################################
 # gg plot pallete
@@ -94,7 +103,7 @@ subgroup_plot_labels <- str_replace(subgroup_plot_labels, "solid", "Solid organ 
 subgroup_plot_labels <- str_replace(subgroup_plot_labels, "_18-69", ", 18-69 years")
 subgroup_plot_labels <- str_replace(subgroup_plot_labels, "_70\\+", ", 70+ years")
 
-# derive data
+
 plot_data <- estimates_all %>%
   filter(
     !reference_row,
@@ -110,32 +119,45 @@ plot_data <- estimates_all %>%
                 levels = subgroup_labels,
                 labels = subgroups
   )) %>%
-  left_join(
-    metareg_res %>%
-      select(subgroup, comparison, outcome, model, prior, loghr1, logrhr) 
-  ) %>%
-  mutate(line = loghr1 + (k-1)*logrhr) %>%
-  mutate(across(c(estimate, conf.low, conf.high, line), exp)) %>%
-  mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
-  # only plot line within range of estimates
-  mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
-  group_by(line_group) %>%
-  mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
-  filter(keep) %>%
+  mutate(across(c(estimate, conf.low, conf.high), exp)) 
+
+
+if(Sys.getenv("OPENSAFELY_BACKEND") %in% c("", "expectations")){
+  
+  plot_data <- plot_data %>%
+    left_join(
+      metareg_res %>%
+        select(subgroup, comparison, outcome, model, prior, loghr1, logrhr) 
+    ) %>%
+    mutate(line = loghr1 + (k-1)*logrhr) %>%
+    mutate(across(c(line), exp)) %>%
+    mutate(line_group = str_c(model, subgroup, comparison, outcome, prior, sep = "; ")) %>%
+    # only plot line within range of estimates
+    mutate(k_nonmiss = if_else(!is.na(estimate), k, NA_integer_)) %>%
+    group_by(line_group) %>%
+    mutate(keep = 0 < sum(!is.na(k_nonmiss))) %>%
+    filter(keep) %>%
+    mutate(
+      min_k = min(k_nonmiss, na.rm = TRUE),
+      max_k = max(k_nonmiss, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate(across(line,
+                  ~ if_else(min_k <= k & k <= max_k,
+                            .x,
+                            NA_real_))) 
+  
+} 
+
+# derive data
+plot_data <- plot_data %>%
   mutate(
-    min_k = min(k_nonmiss, na.rm = TRUE),
-    max_k = max(k_nonmiss, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  mutate(across(line,
-                ~ if_else(min_k <= k & k <= max_k,
-                          .x,
-                          NA_real_))) %>%
-  mutate(k_labelled = k) %>%
-  mutate(across(k_labelled, 
-                factor, 
-                levels = 1:K,
-                labels = weeks_since_2nd_vax)) %>%
+    k_labelled = factor(
+      k,
+      levels = 1:K,
+      labels = weeks_since_2nd_vax
+      )
+    ) %>%
   mutate(across(model,
                 factor,
                 levels = c("unadjusted", "part_adjusted", "max_adjusted"),
@@ -156,10 +178,10 @@ plot_data <- estimates_all %>%
   )) %>%
   mutate(across(comparison,
                 factor,
-                levels = comparisons_old,
-                labels = comparisons_new
+                levels = comparisons
   )) %>%
   droplevels()
+
 
 #################################################################################
 # spacing of points on plot
@@ -313,6 +335,7 @@ plot_models <- function(group, include_prior_infection) {
 
 for (x in 1:8) {
   for (y in c(TRUE, FALSE)) {
+    if (!y & x>2) next
     try(plot_models(group=x, include_prior_infection = y))
   }
 }
@@ -525,19 +548,24 @@ plot_subgroups <- function(group, include_prior_infection, model) {
 # model=1=unadjusted
 # model=2=adjusted
 
-# subgroups 1:2, no fill
-## cancer vs noncancer, main comparison (Lee)
-try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=2))
-## cancer vs noncancer, 18-69 years
-try(plot_subgroups(group=c(5,7), include_prior_infection=TRUE, model=2))
-## cancer vs noncancer, 70+ years
-try(plot_subgroups(group=c(6,8), include_prior_infection=TRUE, model=2))
+if(Sys.getenv("OPENSAFELY_BACKEND") %in% c("", "expectations")){
+  
+  # subgroups 1:2, no fill
+  ## cancer vs noncancer, main comparison (Lee)
+  try(plot_subgroups(group=1:2, include_prior_infection=TRUE, model=2))
+  ## cancer vs noncancer, 18-69 years
+  try(plot_subgroups(group=c(5,7), include_prior_infection=TRUE, model=2))
+  ## cancer vs noncancer, 70+ years
+  try(plot_subgroups(group=c(6,8), include_prior_infection=TRUE, model=2))
+  
+  ## haem vs solid, main comparison (Lee)
+  try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
+  
+  # subgroups 1:2, fill by prior
+  try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
+  
+  # subgroups 1:2, fill by age i.e. subgroups 5:8)
+  try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=2))
+  
+}
 
-## haem vs solid, main comparison (Lee)
-try(plot_subgroups(group=3:4, include_prior_infection=TRUE, model=2))
-
-# subgroups 1:2, fill by prior
-try(plot_subgroups(group=1:2, include_prior_infection=c(FALSE,TRUE), model=2))
-
-# subgroups 1:2, fill by age i.e. subgroups 5:8)
-try(plot_subgroups(group=5:8, include_prior_infection=TRUE, model=2))
